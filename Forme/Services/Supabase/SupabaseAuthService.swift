@@ -63,7 +63,9 @@ final class SupabaseAuthService: AuthService {
     /// Collapses SDK and transport errors into the small set the UI knows how to
     /// present. Anything unrecognised keeps its message rather than being hidden.
     private static func mapped(_ error: any Error) -> AuthError {
-        if let authError = error as? AuthError { return authError }
+        if let authError = error as? AuthError {
+            return authError
+        }
 
         if let urlError = error as? URLError {
             Log.network.error("Auth request failed: \(urlError.code.rawValue, privacy: .public)")

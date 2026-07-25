@@ -33,13 +33,16 @@ enum SemanticStatus: CaseIterable {
         }
     }
 
-    /// Prefixed to the message for VoiceOver, so the status isn't carried by the
-    /// icon alone for someone who never sees it.
-    var accessibilityPrefix: LocalizedStringKey {
+    /// Names the status before the message for VoiceOver, so the status isn't
+    /// carried by the icon alone for someone who never sees it.
+    ///
+    /// One key per case rather than a prefix concatenated onto the message: a
+    /// translator gets the whole sentence and can reorder it.
+    func accessibilityLabel(for message: String) -> LocalizedStringKey {
         switch self {
-        case .error: "Error"
-        case .warning: "Warning"
-        case .success: "Success"
+        case .error: "Error: \(message)"
+        case .warning: "Warning: \(message)"
+        case .success: "Success: \(message)"
         }
     }
 }
@@ -64,7 +67,7 @@ struct StatusLabel: View {
         .formeText(.caption)
         .foregroundStyle(status.color)
         .accessibilityElement(children: .combine)
-        .accessibilityLabel(Text(status.accessibilityPrefix) + Text(": \(message)"))
+        .accessibilityLabel(status.accessibilityLabel(for: message))
     }
 }
 

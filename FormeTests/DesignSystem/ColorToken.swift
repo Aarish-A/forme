@@ -44,7 +44,7 @@ nonisolated enum ColorToken: String, CaseIterable {
     static let surfaces: [ColorToken] = [.surface, .surfaceSecondary]
 }
 
-// Default (main-actor) isolation, so it can read the generated asset symbols.
+/// Default (main-actor) isolation, so it can read the generated asset symbols.
 extension ColorToken {
     var color: Color {
         switch self {

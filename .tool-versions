@@ -1,0 +1,6 @@
+# Pinned developer tools, read by the Makefile and .github/workflows/ci.yml.
+# Both formatters gain rules in point releases, so an unpinned CI eventually
+# rejects code that was clean when it was written. Bump a version here, run
+# `make format`, and commit the result together.
+swiftformat 0.62.1
+swiftlint 0.65.0

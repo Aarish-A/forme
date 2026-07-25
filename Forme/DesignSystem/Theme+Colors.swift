@@ -1,8 +1,8 @@
 import SwiftUI
 
-// Not `nonisolated`, unlike the rest of the design system: Xcode's generated
-// asset symbols are main-actor isolated, so anything reading them has to be too.
-// Colour is only ever needed while drawing, so this costs nothing.
+/// Not `nonisolated`, unlike the rest of the design system: Xcode's generated
+/// asset symbols are main-actor isolated, so anything reading them has to be too.
+/// Colour is only ever needed while drawing, so this costs nothing.
 extension Theme {
     /// Every colour the app is allowed to name.
     ///

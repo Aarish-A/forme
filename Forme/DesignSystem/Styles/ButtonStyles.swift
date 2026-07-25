@@ -31,9 +31,13 @@ struct FormeSecondaryButtonStyle: PrimitiveButtonStyle {
 }
 
 extension PrimitiveButtonStyle where Self == FormePrimaryButtonStyle {
-    static var formePrimary: FormePrimaryButtonStyle { .init() }
+    static var formePrimary: FormePrimaryButtonStyle {
+        .init()
+    }
 }
 
 extension PrimitiveButtonStyle where Self == FormeSecondaryButtonStyle {
-    static var formeSecondary: FormeSecondaryButtonStyle { .init() }
+    static var formeSecondary: FormeSecondaryButtonStyle {
+        .init()
+    }
 }

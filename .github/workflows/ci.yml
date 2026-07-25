@@ -22,8 +22,27 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # Exact versions from .tool-versions, not `brew install`: an unpinned CI
+      # starts rejecting code that was clean when it was written, the moment
+      # either tool ships a new default rule.
       - name: Install tools
-        run: brew install swiftlint swiftformat
+        run: |
+          set -euo pipefail
+          format_version=$(awk '$1 == "swiftformat" { print $2 }' .tool-versions)
+          lint_version=$(awk '$1 == "swiftlint" { print $2 }' .tool-versions)
+          curl -fsSL -o swiftformat.zip \
+            "https://github.com/nicklockwood/SwiftFormat/releases/download/$format_version/swiftformat.zip"
+          curl -fsSL -o swiftlint.zip \
+            "https://github.com/realm/SwiftLint/releases/download/$lint_version/portable_swiftlint.zip"
+          unzip -qo swiftformat.zip -d "$RUNNER_TEMP/tools"
+          unzip -qo swiftlint.zip -d "$RUNNER_TEMP/tools"
+          chmod +x "$RUNNER_TEMP/tools/swiftformat" "$RUNNER_TEMP/tools/swiftlint"
+          echo "$RUNNER_TEMP/tools" >> "$GITHUB_PATH"
+
+      - name: Tool versions
+        run: |
+          swiftformat --version
+          swiftlint version
 
       - name: Check formatting
         run: swiftformat --lint .
@@ -64,7 +83,8 @@ jobs:
         run: xcrun simctl list devices available
 
       # Warnings are errors here but not locally: work in progress can be noisy,
-      # main cannot.
+      # main cannot. FORME_WARNINGS_AS_ERRORS rather than
+      # SWIFT_TREAT_WARNINGS_AS_ERRORS — see Config/Shared.xcconfig for why.
       - name: Test
         run: |
           set -o pipefail
@@ -74,7 +94,7 @@ jobs:
             -destination "platform=iOS Simulator,name=${{ env.SIMULATOR }}" \
             -resultBundlePath TestResults.xcresult \
             -enableCodeCoverage YES \
-            SWIFT_TREAT_WARNINGS_AS_ERRORS=YES \
+            FORME_WARNINGS_AS_ERRORS=YES \
             | xcbeautify --renderer github-actions
 
       - name: Upload results

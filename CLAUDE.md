@@ -47,6 +47,11 @@ make ci          # everything CI runs
 `make` alone lists the rest. Default simulator is iPhone 17; override with
 `make test SIMULATOR="iPhone Air"`.
 
+SwiftFormat and SwiftLint versions are pinned in `.tool-versions` and installed
+at those exact versions in CI. `make tools` checks the local ones match — they
+have to, because a newer local SwiftFormat rewrites files that CI's pinned one
+then rejects. Bumping a pin means running `make format` in the same commit.
+
 ## Architecture
 
 ```
@@ -97,6 +102,12 @@ Never hand-edit `project.pbxproj` to add a source file.
 All build settings live in `Config/*.xcconfig`. Editing Build Settings in the
 Xcode UI writes into `project.pbxproj`, which silently overrides the xcconfig —
 edit the xcconfig instead.
+
+A setting passed on the `xcodebuild` command line applies to **every** target in
+the build, SwiftPM dependencies included. That's why CI passes the project's own
+`FORME_WARNINGS_AS_ERRORS=YES` rather than `SWIFT_TREAT_WARNINGS_AS_ERRORS=YES`:
+only our xcconfigs read the custom name, so dependencies — which Xcode compiles
+with `-suppress-warnings` — never see the conflicting flag.
 
 ## Supabase
 

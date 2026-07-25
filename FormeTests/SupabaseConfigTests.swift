@@ -1,6 +1,5 @@
 import Foundation
 import Testing
-
 @testable import Forme
 
 @Suite("Supabase configuration")
@@ -17,8 +16,8 @@ struct SupabaseConfigTests {
         #expect(config.anonKey == "sb-anon-key")
     }
 
-    // The form Secrets.example.xcconfig recommends, because a bare host has no
-    // `//` for the xcconfig comment scanner to swallow.
+    /// The form Secrets.example.xcconfig recommends, because a bare host has no
+    /// `//` for the xcconfig comment scanner to swallow.
     @Test("Accepts a bare host and assumes https")
     func acceptsBareHost() throws {
         let config = try #require(SupabaseConfig(values: values(url: "abcdefgh.supabase.co")))

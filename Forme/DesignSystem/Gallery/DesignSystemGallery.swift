@@ -126,7 +126,6 @@ struct DesignSystemGallery: View {
         .background(Theme.Colors.surface)
     }
 
-    @ViewBuilder
     private func section(
         _ title: String,
         @ViewBuilder content: () -> some View

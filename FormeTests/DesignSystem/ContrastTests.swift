@@ -24,7 +24,9 @@ struct ContrastTests {
         let foreground: ColorToken
         let background: ColorToken
 
-        var description: String { "\(foreground.rawValue) on \(background.rawValue)" }
+        var description: String {
+            "\(foreground.rawValue) on \(background.rawValue)"
+        }
     }
 
     /// `nonisolated` because `@Test(arguments:)` reads it off the main actor.
