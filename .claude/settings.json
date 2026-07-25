@@ -1,6 +1,5 @@
 {
   "$schema": "https://json.schemastore.org/claude-code-settings.json",
-  "enabledMcpjsonServers": ["supabase"],
   "permissions": {
     "allow": [
       "Bash(make:*)",
@@ -36,6 +35,9 @@
       "Bash(supabase db push:*)"
     ]
   },
+  "enabledMcpjsonServers": [
+    "supabase"
+  ],
   "hooks": {
     "PostToolUse": [
       {
@@ -44,11 +46,16 @@
           {
             "type": "command",
             "command": "jq -r '.tool_response.filePath // .tool_input.file_path // empty' | { read -r f; case \"$f\" in *.swift) swiftformat --quiet \"$f\";; esac; } 2>/dev/null || true",
-            "statusMessage": "Formatting Swift",
-            "timeout": 30
+            "timeout": 30,
+            "statusMessage": "Formatting Swift"
           }
         ]
       }
     ]
+  },
+  "enabledPlugins": {
+    "skill-creator@claude-plugins-official": true,
+    "claude-md-management@claude-plugins-official": true,
+    "commit-commands@claude-plugins-official": true
   }
 }
