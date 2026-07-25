@@ -28,7 +28,9 @@ final class SessionStore {
     }
 
     var session: UserSession? {
-        if case let .signedIn(session) = phase { return session }
+        if case let .signedIn(session) = phase {
+            return session
+        }
         return nil
     }
 

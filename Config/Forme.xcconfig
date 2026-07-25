@@ -29,7 +29,11 @@ INFOPLIST_KEY_NSCameraUsageDescription = Forme uses your camera so you can add c
 INFOPLIST_KEY_NSPhotoLibraryUsageDescription = Forme reads photos you choose so you can add clothes and outfits from your library.
 
 ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon
-ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor
+
+// The system tint points at the design system's own Accent token rather than a
+// separate AccentColor asset: two assets would generate one colliding `accent`
+// symbol, and the duplicate drifted from the token it was copied from.
+ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = Accent
 
 ENABLE_PREVIEWS = YES
 ENABLE_APP_SANDBOX = YES

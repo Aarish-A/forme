@@ -1,6 +1,5 @@
 import Foundation
 import Testing
-
 @testable import Forme
 
 @Suite("Session store", .serialized)

@@ -114,4 +114,30 @@ custom_rules:
     message: "Credentials belong in Config/Secrets.xcconfig, not in source."
     severity: error
 
+  # These two keep the design system honest: features may only *use* the brand,
+  # never define it. Scoped to Features/ so DesignSystem/ stays free to declare
+  # the primitives, and errors rather than warnings because `make lint` runs
+  # --strict, where a warning fails the build anyway — a rule worth having is
+  # worth saying so.
+  no_raw_color_in_features:
+    name: "Raw colour outside the design system"
+    regex: 'Color\(\s*(red|hue|white|\.sRGB|\.displayP3)|#colorLiteral'
+    included: ".*/Features/.*"
+    message: "Use Theme.Colors, or SemanticStatus for anything status-coloured."
+    severity: error
+
+  no_adhoc_font_in_features:
+    name: "Ad-hoc font outside the design system"
+    regex: '\.font\(\s*(\.|Font\.)(system|custom)\('
+    included: ".*/Features/.*"
+    message: "Use .formeText(_:) so the role scales and the brand stays swappable."
+    severity: error
+
+  no_adhoc_animation_in_features:
+    name: "Ad-hoc animation curve outside the design system"
+    regex: '\.animation\(\s*(\.|Animation\.)(easeIn|easeOut|easeInOut|linear|spring|snappy|smooth|bouncy|interpolatingSpring|interactiveSpring)'
+    included: ".*/Features/.*"
+    message: "Use a Theme.Motion token — eased curves aren't interruptible and stutter on retarget."
+    severity: error
+
 reporter: "xcode"

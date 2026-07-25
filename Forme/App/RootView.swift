@@ -24,8 +24,8 @@ struct RootView: View {
 private struct LaunchView: View {
     var body: some View {
         Text("Forme")
-            .font(Theme.Typography.screenTitle)
-            .foregroundStyle(.secondary)
+            .formeText(.screenTitle)
+            .foregroundStyle(Theme.Colors.textSecondary)
     }
 }
 

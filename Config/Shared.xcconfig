@@ -41,9 +41,16 @@ SWIFT_EMIT_LOC_STRINGS = YES
 // MARK: - Warnings
 
 // Kept as warnings locally so they don't interrupt flow; CI passes
-// SWIFT_TREAT_WARNINGS_AS_ERRORS=YES so they can never reach main.
-SWIFT_TREAT_WARNINGS_AS_ERRORS = NO
-GCC_TREAT_WARNINGS_AS_ERRORS = NO
+// FORME_WARNINGS_AS_ERRORS=YES so they can never reach main.
+//
+// The indirection matters: setting SWIFT_TREAT_WARNINGS_AS_ERRORS on the
+// xcodebuild command line applies it to *every* target in the build, including
+// SwiftPM dependencies, which Xcode compiles with -suppress-warnings. Swift
+// rejects that combination outright, so the whole build fails. Our own targets
+// are the only ones reading this custom setting, so dependencies stay untouched.
+FORME_WARNINGS_AS_ERRORS = NO
+SWIFT_TREAT_WARNINGS_AS_ERRORS = $(FORME_WARNINGS_AS_ERRORS)
+GCC_TREAT_WARNINGS_AS_ERRORS = $(FORME_WARNINGS_AS_ERRORS)
 
 CLANG_WARN_DOCUMENTATION_COMMENTS = YES
 CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE
