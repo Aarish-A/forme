@@ -17,7 +17,7 @@ struct WardrobeView: View {
                 Button("Add an item") {
                     Log.feature.info("Add wardrobe item tapped")
                 }
-                .buttonStyle(.borderedProminent)
+                .buttonStyle(.formePrimary)
             }
             .navigationTitle("Wardrobe")
         }

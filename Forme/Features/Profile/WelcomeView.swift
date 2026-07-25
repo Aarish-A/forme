@@ -17,10 +17,10 @@ struct WelcomeView: View {
 
             VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
                 Text("Forme")
-                    .font(Theme.Typography.screenTitle)
+                    .formeText(.screenTitle)
                 Text("Get dressed with confidence.")
-                    .font(Theme.Typography.body)
-                    .foregroundStyle(.secondary)
+                    .formeText(.body)
+                    .foregroundStyle(Theme.Colors.textSecondary)
             }
 
             VStack(spacing: Theme.Spacing.sm) {
@@ -36,23 +36,20 @@ struct WelcomeView: View {
             .textFieldStyle(.roundedBorder)
 
             if let errorMessage = environment.session.errorMessage {
-                Text(errorMessage)
-                    .font(Theme.Typography.caption)
-                    .foregroundStyle(.red)
+                StatusLabel(.error, errorMessage)
             }
 
             VStack(spacing: Theme.Spacing.sm) {
                 Button("Sign in") {
                     Task { await submit { await environment.session.signIn(email: email, password: password) } }
                 }
-                .buttonStyle(.borderedProminent)
+                .buttonStyle(.formePrimary)
 
                 Button("Create an account") {
                     Task { await submit { await environment.session.signUp(email: email, password: password) } }
                 }
-                .buttonStyle(.bordered)
+                .buttonStyle(.formeSecondary)
             }
-            .controlSize(.large)
             .frame(maxWidth: .infinity)
             .disabled(isWorking || email.isEmpty || password.isEmpty)
 

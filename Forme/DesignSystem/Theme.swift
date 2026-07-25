@@ -1,10 +1,14 @@
 import SwiftUI
 
-/// Design tokens for Forme.
+/// The design system's namespace, and its metric half.
 ///
 /// Views should reach for these instead of literal numbers. Confidence comes
 /// partly from an interface that feels considered, and consistent rhythm is
 /// most of that. When a value here changes, the whole app moves with it.
+///
+/// Colour lives in `Theme+Colors.swift`, type in `Theme+Typography.swift`.
+/// Between those three files sits the entire brand: changing them re-skins the
+/// app without a single view being edited.
 nonisolated enum Theme {
     /// An 8-point spacing scale. If a layout needs something off-scale, that's
     /// usually a sign the layout is wrong, not that the scale is missing a value.
@@ -17,6 +21,8 @@ nonisolated enum Theme {
         static let xxl: CGFloat = 48
     }
 
+    /// Corner radii. Part of the brand swap seam — a softer or sharper brand
+    /// moves these and nothing else.
     enum Radius {
         static let sm: CGFloat = 8
         static let md: CGFloat = 16
@@ -24,27 +30,13 @@ nonisolated enum Theme {
         static let card: CGFloat = 20
     }
 
-    /// Semantic type styles built on Dynamic Type, so the app stays legible at
-    /// every accessibility size without per-view special-casing.
-    enum Typography {
-        static let screenTitle = Font.largeTitle.weight(.semibold)
-        static let sectionTitle = Font.title3.weight(.semibold)
-        static let body = Font.body
-        static let caption = Font.footnote
-    }
-}
-
-// MARK: - Reusable view styles
-
-extension View {
-    /// The standard card treatment for garments, outfits, and suggestions.
-    func formeCard() -> some View {
-        padding(Theme.Spacing.md)
-            .background(.background.secondary, in: .rect(cornerRadius: Theme.Radius.card))
-    }
-
-    /// Horizontal insets for full-width screen content.
-    func formeScreenPadding() -> some View {
-        padding(.horizontal, Theme.Spacing.md)
+    /// How the app moves. Defined before anything animates so that Reduce Motion
+    /// is handled by construction rather than audited later — see
+    /// `View.formeAnimation(_:value:)`.
+    enum Motion {
+        /// Immediate feedback: taps, selections, toggles.
+        static let snappy = Animation.snappy(duration: 0.2)
+        /// Content arriving or rearranging.
+        static let settle = Animation.smooth(duration: 0.35)
     }
 }
