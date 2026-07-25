@@ -29,12 +29,10 @@ extension Theme {
 
         /// Primary reading text.
         ///
-        /// Mapped to the system label colour rather than a colorset: it is pure
-        /// black on white and pure white on black, so there is nothing to
-        /// improve, and the system's vibrancy handling is worth keeping. If the
-        /// brand ever wants a warmer near-black, this becomes
-        /// `Color.textPrimary` and one colorset appears — no call site changes.
-        static let textPrimary = Color.primary
+        /// A warm near-black rather than the system label: pure black on a bone
+        /// surface reads colder than the brand wants, and the eye notices even
+        /// at this distance from neutral.
+        static let textPrimary = Color.textPrimary
 
         /// Supporting text: captions, secondary lines, placeholders.
         ///

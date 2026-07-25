@@ -71,6 +71,17 @@ nonisolated extension Theme {
     /// typeface or scale means editing here, dropping any font files into
     /// `Resources/Fonts/`, and declaring `UIAppFonts` in `Config/Info.plist`.
     /// No view changes.
+    ///
+    /// **Deferred decision: the display face.** Every role is currently SF, which
+    /// is free, harmonises with Liquid Glass, and scales without help. A custom
+    /// face for `screenTitle` and `sectionTitle` is on the table and would be a
+    /// two-line change here.
+    ///
+    /// The palette is chosen with that in view. Display faces are typically
+    /// lighter in the stem than SF at the same weight, so text that sits exactly
+    /// on the 4.5:1 line today would read thinner and worse after the swap. The
+    /// colours therefore carry contrast headroom rather than scraping the
+    /// minimum — see `ContrastTests`.
     static func spec(for role: TextRole) -> TextSpec {
         switch role {
         case .screenTitle:

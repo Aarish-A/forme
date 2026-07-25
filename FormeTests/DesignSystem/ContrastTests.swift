@@ -30,7 +30,12 @@ struct ContrastTests {
     /// `nonisolated` because `@Test(arguments:)` reads it off the main actor.
     nonisolated static let pairings: [Pairing] = ColorToken.surfaces.flatMap { surface in
         ColorToken.foregrounds.map { Pairing(foreground: $0, background: surface) }
-    }
+    } + [
+        // The primary button's label on its own fill. Not covered by the loop
+        // above because the fill is a background the app draws deliberately,
+        // not one of the two page surfaces.
+        Pairing(foreground: .onAccentFill, background: .accentFill)
+    ]
 
     @Test(
         "Every text colour meets WCAG AA on every surface",

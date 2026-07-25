@@ -116,7 +116,7 @@ struct DesignSystemGallery: View {
                         .fill(Theme.Colors.accent)
                         .frame(width: 44, height: 44)
                         .offset(x: isNudged ? 120 : 0)
-                        .formeAnimation(Theme.Motion.snappy, value: isNudged)
+                        .animation(Theme.Motion.settle, value: isNudged)
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)

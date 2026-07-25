@@ -2,15 +2,21 @@ import SwiftUI
 
 /// The app's main action on a screen.
 ///
-/// Today this delegates to the platform, which on iOS 26 means the button
-/// inherits Liquid Glass treatment, correct pressed and disabled states, and
-/// every accessibility affordance for free. That is deliberate: the brand pass
-/// restyles *this file*, and because call sites only ever say `.formePrimary`,
-/// none of them change.
+/// The fill is `accentFill`, which is deliberately the same oxblood in both
+/// appearances. `Theme.Colors.accent` can't do this job: it also has to be
+/// legible as *text* on a near-black surface, which forces it to a pale rose in
+/// dark mode — and a pale pink primary button is not what this brand is.
+/// Splitting the two lets each satisfy its own contrast requirement.
+///
+/// The fill colours are read here and nowhere else. They're absent from
+/// `Theme.Colors` on purpose, so no view can pick up a background colour and
+/// use it as a foreground, which is the one way this split could go wrong.
 struct FormePrimaryButtonStyle: PrimitiveButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
         Button(configuration)
             .buttonStyle(.borderedProminent)
+            .tint(Color.accentFill)
+            .foregroundStyle(Color.onAccentFill)
             .controlSize(.large)
     }
 }

@@ -17,12 +17,21 @@ nonisolated enum ColorToken: String, CaseIterable {
     case statusError
     case statusWarning
     case statusSuccess
+    /// Background and label of the primary action. Not on `Theme.Colors` —
+    /// reached through `FormePrimaryButtonStyle` — so the test reaches for the
+    /// generated symbols directly.
+    case accentFill
+    case onAccentFill
 
-    /// Colours Forme defines in its own catalog. System-backed tokens are
-    /// Apple's to vary and aren't ours to assert on.
+    /// Colours that must look different in dark mode.
+    ///
+    /// `accentFill` and `onAccentFill` are deliberately absent: they're
+    /// appearance-independent by design, because a primary button that goes
+    /// pastel in the dark is the problem they exist to solve. That's the
+    /// documented exception `ColorAssetTests` asks for, not an oversight.
     static let brandDefined: [ColorToken] = [
-        .surface, .surfaceSecondary, .outline, .textSecondary,
-        .statusError, .statusWarning, .statusSuccess
+        .surface, .surfaceSecondary, .outline, .textPrimary, .textSecondary,
+        .accent, .statusError, .statusWarning, .statusSuccess
     ]
 
     /// Anything the app draws text or glyphs in.
@@ -48,6 +57,10 @@ extension ColorToken {
         case .statusError: SemanticStatus.error.color
         case .statusWarning: SemanticStatus.warning.color
         case .statusSuccess: SemanticStatus.success.color
+        // Not exposed on Theme.Colors by design, so the test reads the
+        // generated symbols directly.
+        case .accentFill: Color.accentFill
+        case .onAccentFill: Color.onAccentFill
         }
     }
 }
