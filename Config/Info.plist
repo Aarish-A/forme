@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!-- Only keys that Xcode cannot generate belong here.
+
+	     Everything standard (bundle name, orientations, usage strings) is set
+	     via INFOPLIST_KEY_* in Config/Forme.xcconfig and merged into this file
+	     at build time, because GENERATE_INFOPLIST_FILE is YES.
+
+	     INFOPLIST_KEY_* only passes through Info.plist keys Xcode recognises,
+	     so custom keys like these have to be declared explicitly. The values
+	     are build settings and are substituted during the build. -->
+	<key>SUPABASE_URL</key>
+	<string>$(SUPABASE_URL)</string>
+	<key>SUPABASE_ANON_KEY</key>
+	<string>$(SUPABASE_ANON_KEY)</string>
+</dict>
+</plist>

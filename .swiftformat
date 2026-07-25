@@ -1,0 +1,50 @@
+# SwiftFormat configuration for Forme.
+# `make format` rewrites files; `make format-check` (and CI) only reports.
+
+--swiftversion 6.0
+
+--exclude .build,DerivedData,Pods
+
+# MARK: Layout
+
+--indent 4
+--maxwidth 120
+--wraparguments before-first
+--wrapparameters before-first
+--wrapcollections before-first
+--wrapconditions before-first
+--closingparen balanced
+--commas inline
+--trimwhitespace always
+
+# MARK: Style
+
+# Keep `self.` in initialisers, where it disambiguates parameter from property,
+# and drop it everywhere else.
+--self init-only
+--importgrouping testable-bottom
+--stripunusedargs closure-only
+--funcattributes prev-line
+--typeattributes prev-line
+--storedvarattrs same-line
+--patternlet hoist
+--redundanttype inferred
+--someany true
+
+# MARK: Rules
+
+--enable isEmpty
+--enable blankLinesBetweenScopes
+--enable redundantParens
+--enable sortImports
+--enable trailingClosures
+--enable wrapMultilineStatementBraces
+
+# Header comments add noise to diffs and go stale; git already records authorship.
+--enable fileHeader
+--header strip
+
+# SwiftUI modifier chains read better one-per-line, and organizeDeclarations
+# fights the conventional SwiftUI file layout (body first, helpers after).
+--disable organizeDeclarations
+--disable blankLinesAroundMark

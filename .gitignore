@@ -1,0 +1,39 @@
+# macOS
+.DS_Store
+._*
+
+# Xcode — user-specific state (never share these)
+xcuserdata/
+*.xcuserstate
+*.xcscmblueprint
+*.xccheckout
+
+# Xcode — build products
+build/
+DerivedData/
+*.moved-aside
+*.hmap
+*.ipa
+*.dSYM.zip
+*.dSYM
+
+# Swift Package Manager
+.build/
+.swiftpm/
+Packages/
+# Package.resolved IS committed — it pins dependency versions for reproducible builds.
+
+# Fastlane / distribution
+fastlane/report.xml
+fastlane/screenshots/**/*.png
+fastlane/test_output
+
+# Secrets — see Config/Secrets.example.xcconfig for the template
+Config/Secrets.xcconfig
+*.p8
+*.p12
+*.mobileprovision
+
+# Tooling output
+*.log
+.claude/settings.local.json

@@ -1,0 +1,11 @@
+// FormeUITests.xcconfig
+// UI test bundle. Drives the app through XCUITest; no @testable import.
+
+PRODUCT_NAME = $(TARGET_NAME)
+PRODUCT_BUNDLE_IDENTIFIER = $(FORME_BUNDLE_ID_PREFIX).app.uitests
+GENERATE_INFOPLIST_FILE = YES
+
+TEST_TARGET_NAME = Forme
+
+LD_RUNPATH_SEARCH_PATHS = $(inherited) @executable_path/Frameworks @loader_path/Frameworks
+SWIFT_EMIT_LOC_STRINGS = NO

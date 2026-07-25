@@ -1,0 +1,39 @@
+// Forme.xcconfig
+// Settings specific to the Forme app target.
+
+PRODUCT_NAME = $(TARGET_NAME)
+PRODUCT_BUNDLE_IDENTIFIER = $(FORME_BUNDLE_ID_PREFIX).app
+
+// Xcode generates the standard Info.plist keys from the INFOPLIST_KEY_* settings
+// below and merges them into Config/Info.plist, which carries the custom keys
+// (Supabase configuration) that INFOPLIST_KEY_* cannot express.
+GENERATE_INFOPLIST_FILE = YES
+INFOPLIST_FILE = Config/Info.plist
+
+INFOPLIST_KEY_CFBundleDisplayName = Forme
+INFOPLIST_KEY_LSApplicationCategoryType = public.app-category.lifestyle
+
+// Portrait-only on iPhone: Forme is a camera-and-scroll app, and outfit photos
+// have a fixed portrait aspect. Revisit if an iPad layout lands.
+INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = UIInterfaceOrientationPortrait
+INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight
+
+INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES
+INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES
+INFOPLIST_KEY_UILaunchScreen_Generation = YES
+INFOPLIST_KEY_UIStatusBarStyle = UIStatusBarStyleDefault
+
+// Permission strings. iOS shows these verbatim in the system prompt, so they
+// have to say what the user gets, not what the app wants.
+INFOPLIST_KEY_NSCameraUsageDescription = Forme uses your camera so you can add clothes to your wardrobe by photographing them.
+INFOPLIST_KEY_NSPhotoLibraryUsageDescription = Forme reads photos you choose so you can add clothes and outfits from your library.
+
+ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon
+ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor
+
+ENABLE_PREVIEWS = YES
+ENABLE_APP_SANDBOX = YES
+ENABLE_USER_SELECTED_FILES = readonly
+REGISTER_APP_GROUPS = YES
+
+LD_RUNPATH_SEARCH_PATHS = $(inherited) @executable_path/Frameworks

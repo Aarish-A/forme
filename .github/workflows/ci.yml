@@ -1,0 +1,86 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # Must be a simulator the runner image actually has. The "Available
+  # simulators" step below prints the list when a run fails to find it.
+  SIMULATOR: "iPhone 17"
+
+jobs:
+  lint:
+    name: Lint and format
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install tools
+        run: brew install swiftlint swiftformat
+
+      - name: Check formatting
+        run: swiftformat --lint .
+
+      - name: Lint
+        run: swiftlint lint --strict
+
+  test:
+    name: Build and test
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Picks the newest Xcode on the image rather than pinning a version that
+      # may not exist yet. Forme needs Xcode 27+ for iOS 26 and Swift 6.
+      - name: Select newest Xcode
+        run: |
+          latest=$(ls -d /Applications/Xcode*.app | sort -V | tail -1)
+          echo "Using $latest"
+          sudo xcode-select -s "$latest"
+          xcodebuild -version
+
+      - name: Install xcbeautify
+        run: brew install xcbeautify
+
+      # Package.resolved pins exact versions, so this cache is safe to key on it.
+      - name: Cache SwiftPM
+        uses: actions/cache@v4
+        with:
+          path: ~/Library/Developer/Xcode/DerivedData/**/SourcePackages
+          key: spm-${{ runner.os }}-${{ hashFiles('**/Package.resolved') }}
+          restore-keys: spm-${{ runner.os }}-
+
+      - name: Resolve dependencies
+        run: xcodebuild -resolvePackageDependencies -project Forme.xcodeproj
+
+      - name: Available simulators
+        run: xcrun simctl list devices available
+
+      # Warnings are errors here but not locally: work in progress can be noisy,
+      # main cannot.
+      - name: Test
+        run: |
+          set -o pipefail
+          xcodebuild test \
+            -project Forme.xcodeproj \
+            -scheme Forme \
+            -destination "platform=iOS Simulator,name=${{ env.SIMULATOR }}" \
+            -resultBundlePath TestResults.xcresult \
+            -enableCodeCoverage YES \
+            SWIFT_TREAT_WARNINGS_AS_ERRORS=YES \
+            | xcbeautify --renderer github-actions
+
+      - name: Upload results
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: TestResults
+          path: TestResults.xcresult
+          retention-days: 7

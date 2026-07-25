@@ -1,0 +1,54 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "enabledMcpjsonServers": ["supabase"],
+  "permissions": {
+    "allow": [
+      "Bash(make:*)",
+      "Bash(xcodebuild build:*)",
+      "Bash(xcodebuild test:*)",
+      "Bash(xcodebuild clean:*)",
+      "Bash(xcodebuild -list:*)",
+      "Bash(xcodebuild -showBuildSettings:*)",
+      "Bash(xcodebuild -resolvePackageDependencies:*)",
+      "Bash(xcrun simctl list:*)",
+      "Bash(xcrun simctl boot:*)",
+      "Bash(xcrun simctl io:*)",
+      "Bash(xcrun xcresulttool:*)",
+      "Bash(swiftlint:*)",
+      "Bash(swiftformat:*)",
+      "Bash(swift --version)",
+      "Bash(git status:*)",
+      "Bash(git diff:*)",
+      "Bash(git log:*)",
+      "Bash(git show:*)",
+      "Bash(git branch:*)",
+      "Bash(git add:*)",
+      "Bash(supabase --help)",
+      "Bash(supabase status:*)",
+      "Bash(supabase migration list:*)"
+    ],
+    "deny": [
+      "Read(./Config/Secrets.xcconfig)",
+      "Read(./**/*.p8)",
+      "Read(./**/*.p12)",
+      "Read(./**/*.mobileprovision)",
+      "Bash(supabase db reset:*)",
+      "Bash(supabase db push:*)"
+    ]
+  },
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "jq -r '.tool_response.filePath // .tool_input.file_path // empty' | { read -r f; case \"$f\" in *.swift) swiftformat --quiet \"$f\";; esac; } 2>/dev/null || true",
+            "statusMessage": "Formatting Swift",
+            "timeout": 30
+          }
+        ]
+      }
+    ]
+  }
+}

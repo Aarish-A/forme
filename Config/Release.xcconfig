@@ -1,0 +1,17 @@
+// Release.xcconfig
+// TestFlight and App Store builds.
+
+#include "Shared.xcconfig"
+#include? "Secrets.xcconfig"
+
+ONLY_ACTIVE_ARCH = NO
+DEBUG_INFORMATION_FORMAT = dwarf-with-dsym
+ENABLE_TESTABILITY = NO
+ENABLE_NS_ASSERTIONS = NO
+
+SWIFT_OPTIMIZATION_LEVEL = -O
+SWIFT_COMPILATION_MODE = wholemodule
+SWIFT_ACTIVE_COMPILATION_CONDITIONS = $(inherited) RELEASE
+
+MTL_ENABLE_DEBUG_INFO = NO
+VALIDATE_PRODUCT = YES

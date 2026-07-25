@@ -1,0 +1,12 @@
+// FormeTests.xcconfig
+// Unit test bundle. Hosted in the app so tests can use @testable import Forme.
+
+PRODUCT_NAME = $(TARGET_NAME)
+PRODUCT_BUNDLE_IDENTIFIER = $(FORME_BUNDLE_ID_PREFIX).app.tests
+GENERATE_INFOPLIST_FILE = YES
+
+BUNDLE_LOADER = $(TEST_HOST)
+TEST_HOST = $(BUILT_PRODUCTS_DIR)/Forme.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/Forme
+
+LD_RUNPATH_SEARCH_PATHS = $(inherited) @executable_path/Frameworks @loader_path/Frameworks
+SWIFT_EMIT_LOC_STRINGS = NO
