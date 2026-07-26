@@ -40,6 +40,16 @@ struct DesignSystemGallery: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: Theme.Spacing.xl) {
+                section("Mark") {
+                    HStack(alignment: .bottom, spacing: Theme.Spacing.lg) {
+                        FormeMark()
+                        FormeMark(height: FormeMark.minimumLegibleHeight)
+                        FormeMark(height: 72, tint: Color.onAccentFill)
+                            .padding(Theme.Spacing.md)
+                            .background(Color.accentFill, in: .rect(cornerRadius: Theme.Radius.card))
+                    }
+                }
+
                 section("Type") {
                     ForEach(Theme.TextRole.allCases, id: \.self) { role in
                         Text(role.rawValue)
