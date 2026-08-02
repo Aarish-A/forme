@@ -27,6 +27,13 @@ APP_DEVICE := $(DERIVED)/Build/Products/Debug-iphoneos/$(SCHEME).app
 # The first connected iPhone. Override with `make device DEVICE_ID=...`.
 DEVICE_ID ?=
 
+# The labelled photo corpus lives in `fixtures/` and reaches the tests through
+# `FORME_FIXTURES` in the scheme's test action, as `$(SRCROOT)/fixtures` — not
+# from here. Passing `TEST_RUNNER_FORME_FIXTURES=` on the xcodebuild command
+# line looks like it should work and silently does not: the variable never
+# reaches the test process, and a stray `~/forme-fixtures` symlink will happily
+# hide that from you. Set it in the scheme, where Xcode's UI reads it too.
+
 # xcbeautify makes xcodebuild output readable. Optional — falls back to `cat`.
 FORMATTER := $(shell command -v xcbeautify 2>/dev/null || echo cat)
 
@@ -50,7 +57,8 @@ bootstrap: ## One-time setup for a fresh clone
 	@test -f Config/Secrets.xcconfig \
 		|| (cp Config/Secrets.example.xcconfig Config/Secrets.xcconfig \
 			&& echo "Created Config/Secrets.xcconfig — add your Supabase values.")
-	@xcodebuild -resolvePackageDependencies -project $(PROJECT) -derivedDataPath $(DERIVED) >/dev/null
+	@xcodebuild -resolvePackageDependencies -project $(PROJECT) -scheme $(SCHEME) \
+		-derivedDataPath $(DERIVED) >/dev/null
 	@$(MAKE) --no-print-directory tools
 	@echo "Ready. Run 'make test'."
 

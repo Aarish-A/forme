@@ -47,12 +47,18 @@ Config/Secrets.xcconfig
 # build without.
 /diagnostics/
 
-# Test fixture photos. Real photographs of real people, including third parties
-# — they never enter the repo, a commit, or an .xcresult. Path-scoped rather
-# than a blanket image ignore so future legitimate assets aren't swallowed.
-FormeTests/Fixtures/inbox/
-FormeTests/Fixtures/photos/
-FormeTests/Fixtures/labels/
+# Test fixture photos and their labels. Real photographs of real people,
+# including third parties — they never enter the repo, a commit, or an
+# .xcresult. Path-scoped rather than a blanket image ignore so future
+# legitimate assets aren't swallowed.
+#
+# `fixtures/` sits at the repo root and NOT under `Forme/`, `FormeTests/` or
+# `FormeUITests/`, all three of which are synchronized groups: anything placed
+# inside one is auto-added to that target. Putting 490 photos there breaks the
+# build on duplicate resource names, and bundles every one of them into each
+# .xcresult, which is the privacy problem this ignore exists to prevent.
+/fixtures/
+FormeTests/Fixtures/
 
 # Worktrees — `claude --worktree` checks out here; see .worktreeinclude
 .claude/worktrees/

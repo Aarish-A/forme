@@ -1,13 +1,18 @@
 import CoreGraphics
 import Foundation
+import OSLog
+@testable import Forme
 
 /// The labelled corpus of real photos the scan is measured against.
 ///
-/// The photos and their labels live **outside the repository** — at
-/// `~/forme-fixtures` by default, overridable with `FORME_FIXTURES`. They are
-/// photographs of the user, his partner and third parties, so they never enter
-/// git, a build product, or an `.xcresult`. Nothing here loads image data; only
-/// the labels, which are what the fast tests need.
+/// The photos and their labels live in `fixtures/` at the repo root, **ignored
+/// by git** — they are photographs of the user, their partner and third
+/// parties, so they never enter a commit, a build product, or an `.xcresult`.
+/// The directory sits at the root rather than under `FormeTests/` on purpose:
+/// that is a synchronized group, and anything inside one is auto-added to the
+/// target, which both breaks the build and bundles every photo into the results.
+/// Nothing here loads image data; only the labels, which are what the fast
+/// tests need.
 ///
 /// When the corpus is absent — CI, a fresh clone, another machine — every test
 /// that depends on it is *skipped*, never failed.
@@ -61,29 +66,44 @@ nonisolated struct FixtureCorpus: Sendable {
 
     let photos: [Photo]
 
-    /// Where the corpus lives on this machine.
+    /// `fixtures/` at the root of the checkout this test was compiled from.
     ///
-    /// `NSHomeDirectory()` is the app's sandbox container, not the Mac's home —
-    /// so a simulator run looking for `~/forme-fixtures` finds nothing and the
-    /// whole suite skips *silently*, which reads exactly like passing. The
-    /// simulator sets `SIMULATOR_HOST_HOME` to the real home for this reason.
+    /// Derived from `#filePath` rather than looked up at runtime, because every
+    /// runtime handle is wrong here. `NSHomeDirectory()` is the app's *sandbox
+    /// container* inside the simulator, not the Mac's home. `Bundle.main` is the
+    /// test host. And an environment variable set in the scheme arrives
+    /// **unexpanded** — `$(SRCROOT)/fixtures` reaches `ProcessInfo` as that
+    /// literal string, which is worth knowing before spending an afternoon on it.
+    ///
+    /// `#filePath` is resolved by the compiler, so it names the machine that
+    /// built the tests — which is by definition the machine holding the photos.
     static var directory: URL {
-        let environment = ProcessInfo.processInfo.environment
-        if let override = environment["FORME_FIXTURES"] {
+        if let override = ProcessInfo.processInfo.environment["FORME_FIXTURES"] {
             return URL(filePath: override)
         }
-        let home = environment["SIMULATOR_HOST_HOME"] ?? NSHomeDirectory()
-        return URL(filePath: home).appending(path: "forme-fixtures")
+        return URL(filePath: #filePath) // <root>/FormeTests/FixtureCorpus.swift
+            .deletingLastPathComponent() // <root>/FormeTests
+            .deletingLastPathComponent() // <root>
+            .appending(path: "fixtures")
     }
 
-    /// Nil when the corpus isn't on this machine.
+    /// Nil when the corpus isn't on this machine — a fresh clone and CI, both
+    /// of which skip the fixture suites rather than fail.
+    ///
+    /// Says so out loud on the way past. A skipped suite and a passing suite
+    /// look identical in a test summary, and the difference between them is
+    /// every measurement this project steers by.
     static func load() -> FixtureCorpus? {
         let url = directory.appending(path: "labels/labels.json")
         guard
             let data = try? Data(contentsOf: url),
             let photos = try? JSONDecoder().decode([Photo].self, from: data),
             !photos.isEmpty
-        else { return nil }
+        else {
+            Log.scan.notice("fixtureCorpus missing path=\(directory.path(), privacy: .public)")
+            return nil
+        }
+        Log.scan.notice("fixtureCorpus loaded photos=\(photos.count) path=\(directory.path(), privacy: .public)")
         return FixtureCorpus(photos: photos)
     }
 

@@ -76,8 +76,10 @@ jobs:
           key: spm-${{ runner.os }}-${{ hashFiles('**/Package.resolved') }}
           restore-keys: spm-${{ runner.os }}-
 
+      # -scheme is not optional here: newer xcodebuild rejects -derivedDataPath
+      # without -scheme, -testProductsPath or -xctestrun, and exits 64.
       - name: Resolve dependencies
-        run: xcodebuild -resolvePackageDependencies -project Forme.xcodeproj -derivedDataPath DerivedData
+        run: xcodebuild -resolvePackageDependencies -project Forme.xcodeproj -scheme Forme -derivedDataPath DerivedData
 
       - name: Available simulators
         run: xcrun simctl list devices available
