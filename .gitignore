@@ -37,3 +37,24 @@ Config/Secrets.xcconfig
 # Tooling output
 *.log
 .claude/settings.local.json
+
+# Scan diagnostics pulled off a device by `make diag`. Derived from a real
+# photo library, so it never belongs in the repo.
+#
+# Anchored with a leading slash on purpose: an unanchored `diagnostics/`
+# matches at any depth, and on a case-insensitive filesystem that silently
+# swallowed the whole of `Forme/Diagnostics/` — source that the app does not
+# build without.
+/diagnostics/
+
+# Test fixture photos. Real photographs of real people, including third parties
+# — they never enter the repo, a commit, or an .xcresult. Path-scoped rather
+# than a blanket image ignore so future legitimate assets aren't swallowed.
+FormeTests/Fixtures/inbox/
+FormeTests/Fixtures/photos/
+FormeTests/Fixtures/labels/
+
+# Worktrees — `claude --worktree` checks out here; see .worktreeinclude
+.claude/worktrees/
+# Per-worktree Makefile overrides (SIMULATOR, etc.)
+Local.mk

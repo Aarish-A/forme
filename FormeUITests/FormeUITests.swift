@@ -13,15 +13,15 @@ final nonisolated class FormeUITests: XCTestCase {
     }
 
     @MainActor
-    func testAppLaunchesToWelcomeScreen() {
+    func testAppLaunchesToWardrobe() {
         let app = XCUIApplication()
         app.launch()
 
-        // Without Supabase configured the app starts signed out, so Welcome is
-        // the expected first screen on a clean install.
+        // Sign-in is disabled for now, so a clean install lands straight on
+        // the wardrobe.
         XCTAssertTrue(
-            app.buttons["Sign in"].waitForExistence(timeout: 10),
-            "Expected the welcome screen after launch"
+            app.navigationBars["Wardrobe"].waitForExistence(timeout: 10),
+            "Expected the wardrobe screen after launch"
         )
     }
 }

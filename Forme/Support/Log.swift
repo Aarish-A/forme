@@ -20,4 +20,12 @@ nonisolated enum Log {
 
     /// Wardrobe, outfits, and the rest of the product surface.
     static let feature = Logger(subsystem: subsystem, category: "feature")
+
+    /// The photo-library scan: stage counts and durations, never content.
+    ///
+    /// Its own category so `make logs` can watch a scan without the rest of the
+    /// app's chatter. Nothing here may describe what a photo contains — no
+    /// labels, no categories, no asset identifiers — so every message is
+    /// counts, milliseconds, and thresholds.
+    static let scan = Logger(subsystem: subsystem, category: "scan")
 }

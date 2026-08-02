@@ -38,19 +38,86 @@ I'm fluent in React, new to Swift and Xcode.
 ```sh
 make bootstrap   # one-time setup on a fresh clone
 make build       # build for the simulator
+make run         # build, install and launch in the simulator
+make device      # same, on a connected iPhone
+make logs        # stream the app's Log.* output from the simulator
+make diag        # pull scan diagnostics off the connected iPhone
+make diag-sim    # same, from the simulator
 make unit        # unit tests only — use this while iterating
 make test        # unit + UI tests
 make lint        # SwiftLint, strict
 make ci          # everything CI runs
 ```
 
-`make` alone lists the rest. Default simulator is iPhone 17; override with
-`make test SIMULATOR="iPhone Air"`.
+`make` alone lists the rest. Default simulator is iPhone 17 Pro; override with
+`make test SIMULATOR="iPhone Air"`. `make device` finds the connected iPhone
+itself — pass `DEVICE_ID=` only when more than one is attached.
+
+Builds go to `./DerivedData`, not Xcode's global cache, so the `.app` sits at a
+predictable path for `simctl`. Xcode's UI keeps its own cache, so building both
+ways compiles twice.
+
+The simulator has no camera: anything touching capture, and any real check of
+Vision performance, has to run on a device.
+
+**A scan writes a diagnostics report** (`Application Support/Diagnostics/`, DEBUG
+builds only) with stage counts and the distribution behind every threshold.
+`make diag` pulls it off a cabled iPhone; the finished-scan screen also has a
+"Scan Report" button that shares the file. Tune thresholds from those
+distributions, not from screenshots — a histogram of face sizes would have caught
+the dead identity gate in seconds.
+
+**Reading `Log.*` from a real device: use the Xcode MCP.** When the app is
+launched from Xcode (`RunProject`, or the Run button), `GetConsoleOutput` returns
+its OSLog — on a physical device, with subsystem/category metadata, regex and
+severity filters. That is the live-narration channel. Note what does *not* work,
+so it isn't re-investigated: `log stream` has no device flag, `log collect`
+needs root, and `devicectl … --console` bridges stdout only, which `Logger` does
+not write to. `make logs` covers the simulator.
+
+Logs narrate; the report measures. Reach for the report for anything shaped like
+a distribution — that's what a log stream is bad at.
+
+The report may never contain anything about what the user wears or looks like —
+counts, durations and scalar histograms only. See `ScanReport`'s doc comment.
 
 SwiftFormat and SwiftLint versions are pinned in `.tool-versions` and installed
 at those exact versions in CI. `make tools` checks the local ones match — they
 have to, because a newer local SwiftFormat rewrites files that CI's pinned one
 then rejects. Bumping a pin means running `make format` in the same commit.
+
+## Worktrees
+
+**Commit before you split.** `claude --worktree <name>` checks out into
+`.claude/worktrees/<name>/` on a branch taken from origin's default branch, and
+a worktree never carries uncommitted work. Split with a dirty tree and the agent
+builds an older app than the one in front of you.
+
+**Delete the app from the phone when you switch worktrees.** Every branch
+installs the same `com.forme.app`, and an upgrade-install keeps its Application
+Support directory — so one branch's code opens another branch's wardrobe data,
+which reads as a bug in whatever you're testing.
+
+`.worktreeinclude` copies the gitignored files a worktree can't build properly
+without. Add to it rather than copying files by hand.
+
+`DERIVED := DerivedData` is relative, so each worktree builds into its own
+(~800 MB) and two builds never fight over one build database.
+
+Three things stay serial no matter how many worktrees are open:
+
+- **The iPhone.** There's one of it, and the simulator has no camera, so capture
+  and any real check of Vision performance queue up behind you.
+- **`.tool-versions` bumps.** SwiftFormat and SwiftLint are single global
+  binaries shared by every worktree and by the format-on-write hook. A bump
+  breaks `make tools` everywhere at once.
+- **Supabase schema changes.** Every worktree points at the same project ref
+  with MCP write access. Worktrees isolate files, not the database.
+
+If concurrent `make unit` runs start failing strangely, it's the two of them
+installing `com.forme.app` onto one simulator mid-test: put
+`SIMULATOR := iPhone Air` in one worktree's `Local.mk`. Not worth doing
+pre-emptively.
 
 ## Architecture
 
@@ -82,6 +149,10 @@ Never hand-edit `project.pbxproj` to add a source file.
 - **Concurrency**: `SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor`, so types are
   main-actor isolated by default. Never add `@MainActor`; mark value types and
   stateless helpers `nonisolated`. `XCTestCase` subclasses must be `nonisolated`.
+  Under approachable concurrency, a `nonisolated` **async** function runs on
+  its *caller's* actor — `nonisolated` alone no longer means "off main". Mark
+  heavy async work (image decode/encode, Vision, PhotoKit fetches)
+  `@concurrent` so it always leaves the calling actor.
 - **Explicit imports**: member import visibility is on, so a file using `Logger`
   needs its own `import OSLog`.
 - **Logging**: `Log.app` / `.auth` / `.network` / `.feature`, never `print`.

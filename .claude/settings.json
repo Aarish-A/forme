@@ -28,6 +28,7 @@
     ],
     "deny": [
       "Read(./Config/Secrets.xcconfig)",
+      "Read(./.claude/settings.local.json)",
       "Read(./**/*.p8)",
       "Read(./**/*.p12)",
       "Read(./**/*.mobileprovision)",

@@ -11,9 +11,6 @@ struct FormeApp: App {
         WindowGroup {
             RootView()
                 .environment(\.appEnvironment, environment)
-                .task {
-                    await environment.session.restore()
-                }
         }
     }
 }

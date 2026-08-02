@@ -12,9 +12,12 @@ git clone <this repo>
 cd forme
 make bootstrap
 make test
+make run
 ```
 
-Then open `Forme.xcodeproj` and run.
+`make run` builds and launches in the simulator; `make device` does the same on
+a connected iPhone. Open `Forme.xcodeproj` when you want previews or the
+debugger.
 
 The app builds and runs without Supabase credentials — it falls back to
 in-memory auth, so you can work on UI immediately. To connect a real backend,
@@ -39,6 +42,9 @@ written for Claude Code but applies equally to humans.
 Run `make` with no arguments to list everything. The common ones:
 
 ```sh
+make run      # build and launch in the simulator
+make device   # build and launch on a connected iPhone
+make logs     # stream the app's log output
 make build    # build for the simulator
 make unit     # unit tests only — fast
 make test     # unit + UI tests

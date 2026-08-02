@@ -1,0 +1,9 @@
+# Gitignored files copied into every worktree Claude Code creates.
+# Without these a worktree still builds — which is the problem. It silently
+# falls back to InMemoryAuthService, so you debug a ghost instead of the app.
+
+# Supabase URL and anon key.
+Config/Secrets.xcconfig
+
+# SUPABASE_ACCESS_TOKEN, which .mcp.json reads to auth the Supabase MCP server.
+.claude/settings.local.json

@@ -26,7 +26,7 @@ INFOPLIST_KEY_UIStatusBarStyle = UIStatusBarStyleDefault
 // Permission strings. iOS shows these verbatim in the system prompt, so they
 // have to say what the user gets, not what the app wants.
 INFOPLIST_KEY_NSCameraUsageDescription = Forme uses your camera so you can add clothes to your wardrobe by photographing them.
-INFOPLIST_KEY_NSPhotoLibraryUsageDescription = Forme reads photos you choose so you can add clothes and outfits from your library.
+INFOPLIST_KEY_NSPhotoLibraryUsageDescription = Forme scans your photos on your iPhone to find clothes you own and build your wardrobe. Photos never leave your device.
 
 ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon
 
