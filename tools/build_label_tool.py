@@ -12,9 +12,14 @@ visibility, sharpness, occlusion and near-duplication — is dropped outright.
 It cannot be corrected into something useful, because when it said `low` it
 could not say which of the four it meant.
 
-Five passes, one per gate in the pipeline, so the tool and the code answer the
-same questions in the same order. Everything is pre-filled and the human is
-correcting, not creating.
+Three passes — identity, framing, and the garment registry. Those are the only
+questions a machine cannot answer, and everything is pre-filled so the human is
+correcting rather than creating.
+
+Two gates are deliberately not asked about. Whether a file is a photograph is
+`PHAsset` metadata plus Vision's utility flag, and whether it is sharp enough is
+a measured scalar. Spending human attention on either would be waste, and worse,
+a hand label for "sharp enough" would bake a threshold into the ground truth.
 
     python3 tools/build_label_tool.py && open fixtures/label.html
 """
@@ -269,9 +274,10 @@ TEMPLATE = r"""<!doctype html>
   <header>
     <h1>Labelling</h1>
     <p class="lede">
-      Five passes, one per gate in the pipeline. Everything is pre-filled from the
-      old labels — you are correcting, not starting over. Click a photo to change
-      it. Progress saves automatically.
+      Three passes — the only questions a machine cannot answer. Screenshots and
+      image quality are measured, not labelled, so they are not here. Everything
+      is pre-filled from the old labels: you are correcting, not starting over.
+      Progress saves automatically.
     </p>
     <nav id="nav"></nav>
   </header>
@@ -325,33 +331,12 @@ function section(title, ask, note) {
   return el;
 }
 
-// ---- Pass 1: is this a photograph at all? --------------------------------
-function passPhotograph(main) {
-  const el = section("1 · Is this a photograph?",
-    "Click any that are a <b>screenshot, receipt, graphic, or photo of a screen</b>.",
-    "The cheapest gate in the pipeline, and the only one that runs on metadata alone. " +
-    "Dimmed tiles are already marked as not a photograph.");
-  const grid = document.createElement("div");
-  grid.className = "grid";
-  for (const photo of photos) {
-    const fig = tile(photo, { cls: photo.isPhotograph ? "" : "off" });
-    fig.onclick = () => {
-      photo.isPhotograph = !photo.isPhotograph;
-      fig.className = photo.isPhotograph ? "" : "off";
-      persist();
-    };
-    grid.appendChild(fig);
-  }
-  el.appendChild(grid);
-  main.appendChild(el);
-}
-
 // ---- Pass 2: whose body is this? ----------------------------------------
 const IDENTITY_CYCLE = ["owner", "other", "unknown", "none"];
 const IDENTITY_LABEL = { owner: "you", other: "someone else", unknown: "not sure", none: "no people" };
 
 function passIdentity(main) {
-  const el = section("2 · Who is in this photo?",
+  const el = section("1 · Who is in this photo?",
     "Click to cycle: <b>you → someone else → not sure → no people</b>.",
     "The gate everything else multiplies through. Note this is still a per-photo " +
     "answer; when a photo has two people it will become per-body once person " +
@@ -379,11 +364,12 @@ function passIdentity(main) {
 
 // ---- Pass 3: can a garment be read off this body? ------------------------
 function passFraming(main) {
-  const el = section("3 · Can you see what they are wearing?",
+  const el = section("2 · Can you see what they are wearing?",
     "Click any where you <b>cannot</b> read a garment — face too close, body cut off, turned away.",
-    "Recorded as which parts of the body are visible, not as a verdict. That is " +
-    "the whole point: the gate becomes a function over these, so it can be " +
-    "re-tuned forever without anyone re-labelling anything.");
+    "Recorded as which parts of the body are visible, not as a verdict, so the " +
+    "gate stays a function over these and can be re-tuned forever without " +
+    "re-labelling. This one has to be human: body pose is the thing being " +
+    "tested, so letting pose generate the answer would score it against itself.");
   const grid = document.createElement("div");
   grid.className = "grid";
   for (const photo of photos.filter(p => p.isPhotograph && p.identity === "owner")) {
@@ -406,41 +392,12 @@ function passFraming(main) {
   main.appendChild(el);
 }
 
-// ---- Pass 4: is the image good enough? ----------------------------------
-function passQuality(main) {
-  const el = section("4 · Is the image good enough?",
-    "Click any too <b>blurry, dark, or obscured</b> to get a clean garment out of.",
-    "Kept separate from pass 3 on purpose. Bundling 'can I see it' with 'is it " +
-    "sharp' into one score is exactly what made the last schema unfalsifiable — " +
-    "when a photo failed, nothing could say which of the two it was.");
-  const grid = document.createElement("div");
-  grid.className = "grid";
-  for (const photo of photos.filter(p => p.isPhotograph && p.identity === "owner")) {
-    const bad = () => photo.sharpness !== "sharp" || photo.exposure !== "ok";
-    const fig = tile(photo, {
-      cls: bad() ? "off" : "",
-      caption: `${photo.id} · ${photo.sharpness} · ${photo.exposure}`,
-    });
-    fig.onclick = () => {
-      if (bad()) { photo.sharpness = "sharp"; photo.exposure = "ok"; }
-      else { photo.sharpness = "blurry"; }
-      fig.className = bad() ? "off" : "";
-      fig.querySelector("figcaption").textContent =
-        `${photo.id} · ${photo.sharpness} · ${photo.exposure}`;
-      persist();
-    };
-    grid.appendChild(fig);
-  }
-  el.appendChild(grid);
-  main.appendChild(el);
-}
-
 // ---- Pass 5: the garment registry ---------------------------------------
 const VARIANTS = ["v1", "v2", "vx"];
 const VARIANT_LABEL = { v1: "", v2: "2", vx: "✕" };
 
 function passRegistry(main) {
-  const el = section("5 · Your actual garments",
+  const el = section("3 · Your actual garments",
     "One row per garment. <b>Rename freely</b> — two rows with the same name become one item. " +
     "Click a photo to mark it a <b>different</b> garment (2) or <b>not this garment</b> (✕).",
     "This is the only label no algorithm can supply, and the one the whole " +
@@ -487,11 +444,13 @@ function passRegistry(main) {
 }
 
 // ---- Shell ---------------------------------------------------------------
+// Two gates are deliberately absent. "Is this a photograph" comes from
+// PHAsset metadata and Vision's utility flag; "is it sharp enough" is a
+// measured scalar. Neither is a question a human should be asked, and asking
+// one anyway is how a label ends up encoding a threshold.
 const PASSES = [
-  ["Photograph?", passPhotograph],
   ["Who is here?", passIdentity],
   ["Outfit visible?", passFraming],
-  ["Good enough?", passQuality],
   ["Garments", passRegistry],
 ];
 

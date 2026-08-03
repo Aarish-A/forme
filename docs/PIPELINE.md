@@ -221,6 +221,29 @@ The direct payoff: every gate becomes a pure function over recorded
 observations, so it can be re-tuned and re-scored offline in seconds, forever,
 without anyone re-labelling anything.
 
+### What is never labelled by hand
+
+Gate 1 is `PHAsset` metadata plus Vision's utility flag. Gate 4 is a measured
+scalar — Laplacian variance for sharpness, a histogram for exposure. Neither is
+a question to put to a person: the first is free and exact, and a hand label for
+"sharp enough" would bake a threshold into the ground truth, which is the
+failure this schema exists to prevent.
+
+That leaves three questions a machine cannot answer, and they are the whole of
+the labelling tool: **who is in this photo**, **what of them can you see**, and
+**which of these are the same physical garment**.
+
+Framing stays human on purpose even though pose measures it. Pose is the thing
+under test; letting it generate its own ground truth would score it against
+itself.
+
+**The corpus cannot exercise gate 1.** Converting the fixtures to JPEG rewrote
+every file's metadata identically — all 490 report `Apple / iPhone 13 Pro` — so
+screenshots are indistinguishable from photographs by metadata here. Gate 1 is
+verified on device only, and the corpus carries the derived answer rather than a
+measurable one. Recorded because a gate that cannot fail in the harness will
+look like a gate that works.
+
 ### Shape
 
 ```
