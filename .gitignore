@@ -64,3 +64,9 @@ FormeTests/Fixtures/
 .claude/worktrees/
 # Per-worktree Makefile overrides (SIMULATOR, etc.)
 Local.mk
+
+# Compiled macOS tools and the Core ML model they load.
+/.build/
+
+# Python bytecode from the fixture tooling.
+__pycache__/

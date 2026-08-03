@@ -154,6 +154,47 @@ diag-sim: ## Copy scan reports out of the simulator into ./diagnostics/sim
 		|| { echo "No reports yet — run a scan first."; exit 1; }
 	@find diagnostics/sim -name '*.json' | head -5
 
+# The perception layer, compiled for macOS and run over the fixture corpus.
+#
+# Vision is native on macOS; it is only the Simulator that cannot run it,
+# because the weights are Neural Engine only. So this is the headless loop the
+# Simulator could never give us — real Vision output over 490 real photos, in
+# one pass, cached to JSON so that scoring a gate afterwards costs milliseconds.
+#
+# It compiles the app's own sources rather than a copy. The flags below mirror
+# Config/Shared.xcconfig exactly: get the isolation defaults wrong and
+# `nonisolated` means something different here than it does on the phone, which
+# would make this measure the wrong program.
+VISION_SOURCES := \
+	Forme/Support/Log.swift \
+	Forme/Diagnostics/ScanReport.swift \
+	Forme/Models/Piece.swift \
+	Forme/Services/GarmentDetector.swift \
+	Forme/Services/FaceIdentity/FaceIdentityService.swift \
+	Forme/Services/FaceIdentity/FaceSeedService.swift \
+	Forme/Services/FaceIdentity/VisionFaceIdentityService.swift \
+	Forme/Services/Vision/VisionGarmentDetector.swift \
+	tools/vision_cache/main.swift
+
+VISION_FLAGS := -swift-version 6 -O \
+	-enable-upcoming-feature MemberImportVisibility \
+	-enable-upcoming-feature InferIsolatedConformances \
+	-enable-upcoming-feature NonisolatedNonsendingByDefault \
+	-default-isolation MainActor \
+	-strict-concurrency=complete
+
+.build/SFace.mlmodelc: Forme/Resources/Models/SFace.mlpackage
+	@mkdir -p .build
+	@xcrun coremlcompiler compile $< .build >/dev/null
+
+.build/vision-cache: $(VISION_SOURCES)
+	@mkdir -p .build
+	@swiftc $(VISION_FLAGS) $(VISION_SOURCES) -o $@
+
+.PHONY: vision-cache
+vision-cache: .build/vision-cache .build/SFace.mlmodelc ## Run real Vision over the corpus, cache what it saw
+	@.build/vision-cache fixtures fixtures/labels/vision-cache.json .build/SFace.mlmodelc
+
 .PHONY: destinations
 destinations: ## List the simulators and devices you can build for
 	@xcodebuild -showdestinations -project $(PROJECT) -scheme $(SCHEME) 2>/dev/null \
