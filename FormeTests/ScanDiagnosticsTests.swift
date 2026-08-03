@@ -99,7 +99,7 @@ nonisolated struct ScanReportTests {
     }
 
     @Test("A gate that rejects every sample it sees raises a tripwire")
-    func deadGateIsFlagged() {
+    func deadGateIsFlagged() throws {
         var builder = builder()
         // Exactly the field-test failure: Vision saw faces on every photo, all
         // of them under the embedding floor.
@@ -112,11 +112,11 @@ nonisolated struct ScanReportTests {
         }
 
         let report = builder.report(wasCancelled: false, now: Fix.date(10))
-        let warning = try? #require(report.warnings.first { $0.subject == "faceSidePx" })
-        #expect(warning?.code == "gateRejectsAlmostEverything")
-        #expect(warning?.values["passed"] == 0)
-        #expect(warning?.values["max"] == 35)
-        #expect(warning?.values["threshold"] == Double(FaceIdentityLimits.minimumFacePixels))
+        let warning = try #require(report.warnings.first { $0.subject == "faceSidePx" })
+        #expect(warning.code == "gateRejectsAlmostEverything")
+        #expect(warning.values["passed"] == 0)
+        #expect(warning.values["max"] == 35)
+        #expect(warning.values["threshold"] == Double(FaceIdentityLimits.minimumFacePixels))
     }
 
     @Test("A gate with no samples at all is flagged separately from one that rejects")

@@ -171,8 +171,19 @@ format: ## Rewrite sources with SwiftFormat
 format-check: ## Verify formatting without rewriting
 	@swiftformat --lint .
 
+# Warnings are errors in CI but not while iterating: work in progress can be
+# noisy, main cannot. That split is deliberate — but `make ci` claims to be the
+# same check CI runs, so it has to carry the flag too, or a warning sails
+# through green locally and fails the push. Which is exactly what it did.
+.PHONY: strict-test
+strict-test:
+	@set -o pipefail && xcodebuild test \
+		-project $(PROJECT) -scheme $(SCHEME) -destination '$(DESTINATION)' \
+		-derivedDataPath $(DERIVED) -enableCodeCoverage YES \
+		FORME_WARNINGS_AS_ERRORS=YES | $(FORMATTER)
+
 .PHONY: ci
-ci: tools format-check lint test ## Everything CI runs
+ci: tools format-check lint strict-test ## Everything CI runs
 
 .PHONY: clean
 clean: ## Remove build artefacts

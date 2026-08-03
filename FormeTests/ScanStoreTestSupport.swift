@@ -86,9 +86,14 @@ nonisolated enum Fix {
         var images: [String: CGImage] = [:]
         func assets(_ list: [Spec]) throws -> [PhotoAsset] {
             try list.enumerated().map { index, spec in
-                images[spec.id] = try #require(
+                // Unwrapped into a local rather than assigned straight into the
+                // dictionary: a subscript assignment expects `CGImage?`, which
+                // makes `#require` look like it is unwrapping nothing, and it
+                // says so as a warning that CI turns into an error.
+                let image = try #require(
                     TestImageFactory.image(color: TestImageFactory.Color.palette(index), size: spec.width)
                 )
+                images[spec.id] = image
                 return PhotoAsset(id: spec.id, creationDate: spec.date)
             }
         }

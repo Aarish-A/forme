@@ -614,7 +614,7 @@ extension ScanStore {
     /// it never fights the user's own review-time taps.
     private func normalizeSelection(inGroup groupID: Int) {
         let indices = candidates.indices.filter { candidates[$0].groupID == groupID }
-        guard var bestIndex = indices.first else { return }
+        guard let bestIndex = indices.first else { return }
 
         // Only positive evidence pre-selects. A group where identity never got
         // a readable face is shown but left unchecked: 41% of a real scan lands
