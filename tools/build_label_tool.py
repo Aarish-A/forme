@@ -12,9 +12,15 @@ visibility, sharpness, occlusion and near-duplication — is dropped outright.
 It cannot be corrected into something useful, because when it said `low` it
 could not say which of the four it meant.
 
-Three passes — identity, framing, and the garment registry. Those are the only
-questions a machine cannot answer, and everything is pre-filled so the human is
-correcting rather than creating.
+Three passes, in the order the pipeline runs them: can anyone's outfit be read
+here, is that person you, and which of these are the same physical garment.
+Those are the only questions a machine cannot answer, and everything is
+pre-filled so the human is correcting rather than creating.
+
+The order matters more than it looks. Asking "is this you" about a queue of
+thirty-pixel strangers is a question with no useful answer either way, so
+visibility runs first and identity only sees what survived it. A face is never
+allowed to decide whether a person is present — only who they are.
 
 Two gates are deliberately not asked about. Whether a file is a photograph is
 `PHAsset` metadata plus Vision's utility flag, and whether it is sharp enough is
@@ -27,6 +33,7 @@ a hand label for "sharp enough" would bake a threshold into the ground truth.
 from __future__ import annotations
 
 import base64
+import collections
 import json
 import shutil
 import subprocess
@@ -112,6 +119,19 @@ def migrate(old: dict) -> dict:
 
     facing = "away" if shot == "back_turned" or "back_turned" in issues else "front"
 
+    regions = REGIONS_BY_SHOT.get(shot, [])
+    # Can a garment be read off anyone here? Checked in the pipeline's own
+    # order, so `distant` loses before its region list is consulted — a figure
+    # at the far end of a beach has a complete body and no readable outfit.
+    if old["people"] == 0 or shot in ("no_person", "flatlay"):
+        visibility = "none"
+    elif shot in ("distant", "face_closeup", "back_turned"):
+        visibility = "unreadable"
+    elif "torso" in regions:
+        visibility = "readable"
+    else:
+        visibility = "unreadable"
+
     return {
         "id": old["id"],
         "bucket": old["bucket"],
@@ -121,7 +141,8 @@ def migrate(old: dict) -> dict:
         # graphic, or a photo of a screen.
         "isPhotograph": shot != "screenshot_or_graphic" and "screenshot_or_graphic" not in issues,
         "identity": {"yes": "owner", "no": "other", "unsure": "unknown"}[old["aarish"]],
-        "regions": REGIONS_BY_SHOT.get(shot, []),
+        "visibility": visibility,
+        "regions": regions,
         "sharpness": sharpness,
         "exposure": exposure,
         "occlusion": occlusion,
@@ -192,8 +213,11 @@ def build() -> int:
     )
     OUTPUT.write_text(TEMPLATE.replace("__DATA__", payload))
 
-    owner = sum(1 for p in photos if p["identity"] == "owner")
-    print(f"\n  {len(photos)} photos · {owner} pre-marked as you · {len(garments)} proposed garments")
+    counts = collections.Counter(p["visibility"] for p in photos if p["isPhotograph"])
+    owner = sum(1 for p in photos if p["visibility"] == "readable" and p["identity"] == "owner")
+    print(f"\n  {len(photos)} photos · {len(garments)} proposed garments")
+    print("  " + " · ".join(f"{v} {k}" for k, v in counts.most_common()))
+    print(f"  identity pass will ask about {counts['readable']} photos, {owner} pre-marked as you")
     print(f"  {OUTPUT}  ({OUTPUT.stat().st_size / 1_000_000:.1f} MB)")
     return 0
 
@@ -240,7 +264,12 @@ TEMPLATE = r"""<!doctype html>
   figure.owner   { border-color:var(--you); }   figure.owner   .badge { background:var(--you); }
   figure.other   { border-color:var(--other); } figure.other   .badge { background:var(--other); }
   figure.unknown { border-color:var(--unknown); } figure.unknown .badge { background:var(--unknown); }
-  figure.none    { opacity:.45; }
+  figure.readable   { border-color:var(--you); }   figure.readable   .badge { background:var(--you); }
+  figure.unreadable { border-color:var(--unknown); opacity:.7; }
+  figure.unreadable .badge { background:var(--unknown); }
+  figure.depicted   { border-color:var(--accent); } figure.depicted .badge { background:var(--accent); }
+  figure.none       { border-color:var(--line); opacity:.4; }
+  figure.none .badge { background:#555; }
   figcaption { position:absolute; left:0; right:0; bottom:0; padding:13px 7px 4px; font-size:10px;
                color:#fff; background:linear-gradient(transparent,rgba(0,0,0,.85)); }
   .row { background:var(--panel); border:1px solid var(--line); border-radius:12px;
@@ -274,10 +303,11 @@ TEMPLATE = r"""<!doctype html>
   <header>
     <h1>Labelling</h1>
     <p class="lede">
-      Three passes — the only questions a machine cannot answer. Screenshots and
-      image quality are measured, not labelled, so they are not here. Everything
-      is pre-filled from the old labels: you are correcting, not starting over.
-      Progress saves automatically.
+      Three passes, in the order the pipeline runs them: can anyone's outfit be
+      read here, is that person you, and which garments are the same physical
+      item. Screenshots and image quality are measured rather than labelled, so
+      they are not here. Everything is pre-filled — you are correcting, not
+      starting over. Progress saves automatically.
     </p>
     <nav id="nav"></nav>
   </header>
@@ -309,10 +339,10 @@ function persist() {
     photos: Object.fromEntries(photos.map(p => [p.id, p])),
     garments: Object.fromEntries(garments.map(g => [g.id, g])),
   }));
-  const owner = photos.filter(p => p.identity === "owner").length;
-  const named = garments.filter(g => g.name).length;
+  const readable = photos.filter(p => p.isPhotograph && p.visibility === "readable").length;
+  const owner = photos.filter(p => p.visibility === "readable" && p.identity === "owner").length;
   document.getElementById("status").textContent =
-    `${owner} photos of you · ${garments.length} garments · ${named} named`;
+    `${readable} readable · ${owner} of you · ${garments.length} garments`;
 }
 
 function tile(photo, { badge, cls, caption } = {}) {
@@ -331,29 +361,46 @@ function section(title, ask, note) {
   return el;
 }
 
-// ---- Pass 2: whose body is this? ----------------------------------------
-const IDENTITY_CYCLE = ["owner", "other", "unknown", "none"];
-const IDENTITY_LABEL = { owner: "you", other: "someone else", unknown: "not sure", none: "no people" };
+// ---- Pass 1: is there anyone here whose outfit we could read? -----------
+//
+// This runs first because the pipeline runs it first, and because asking
+// "is this you" about a queue of 30-pixel strangers is a question with no
+// useful answer in either direction.
+//
+// `depicted` is its own state and not a flavour of `none`. A face on a book
+// cover, a poster, or a TV is exactly what a face detector fires on, and a
+// depicted face can clear an identity threshold — at which point a book
+// jacket's clothes enter someone's wardrobe. Guarding against that means
+// requiring a person rectangle with the face inside it, and proving the guard
+// works needs photos where the right answer is "a face, but nobody there".
+const VISIBILITY_CYCLE = ["readable", "unreadable", "depicted", "none"];
+const VISIBILITY_LABEL = {
+  readable: "outfit visible",
+  unreadable: "can't read it",
+  depicted: "pictured, not real",
+  none: "nobody",
+};
 
-function passIdentity(main) {
-  const el = section("1 · Who is in this photo?",
-    "Click to cycle: <b>you → someone else → not sure → no people</b>.",
-    "The gate everything else multiplies through. Note this is still a per-photo " +
-    "answer; when a photo has two people it will become per-body once person " +
-    "boxes exist, and 'not sure' is a real answer that stays a third state — " +
-    "never quietly promoted to 'you'.");
+function passVisibility(main) {
+  const el = section("1 · Can you read an outfit off anyone here?",
+    "Click to cycle: <b>outfit visible → can't read it → pictured, not real → nobody</b>.",
+    "<b>Can't read it</b> covers too far away, turned away, or too occluded — " +
+    "someone is there, but no garment could come out of it. " +
+    "<b>Pictured, not real</b> is a face or body that is a photograph, poster, " +
+    "book cover or screen: no person in the room at all. " +
+    "Human-labelled on purpose — body pose is the thing being tested, so " +
+    "letting pose answer this would score it against itself.");
   const grid = document.createElement("div");
   grid.className = "grid";
   for (const photo of photos.filter(p => p.isPhotograph)) {
-    if (photo.peopleCount === 0 && !photo.identity) photo.identity = "none";
     const fig = tile(photo, {
-      cls: photo.identity, badge: IDENTITY_LABEL[photo.identity],
+      cls: photo.visibility, badge: VISIBILITY_LABEL[photo.visibility],
     });
     fig.onclick = () => {
-      const next = (IDENTITY_CYCLE.indexOf(photo.identity) + 1) % IDENTITY_CYCLE.length;
-      photo.identity = IDENTITY_CYCLE[next];
-      fig.className = photo.identity;
-      fig.querySelector(".badge").textContent = IDENTITY_LABEL[photo.identity];
+      const next = (VISIBILITY_CYCLE.indexOf(photo.visibility) + 1) % VISIBILITY_CYCLE.length;
+      photo.visibility = VISIBILITY_CYCLE[next];
+      fig.className = photo.visibility;
+      fig.querySelector(".badge").textContent = VISIBILITY_LABEL[photo.visibility];
       persist();
     };
     grid.appendChild(fig);
@@ -362,28 +409,29 @@ function passIdentity(main) {
   main.appendChild(el);
 }
 
-// ---- Pass 3: can a garment be read off this body? ------------------------
-function passFraming(main) {
-  const el = section("2 · Can you see what they are wearing?",
-    "Click any where you <b>cannot</b> read a garment — face too close, body cut off, turned away.",
-    "Recorded as which parts of the body are visible, not as a verdict, so the " +
-    "gate stays a function over these and can be re-tuned forever without " +
-    "re-labelling. This one has to be human: body pose is the thing being " +
-    "tested, so letting pose generate the answer would score it against itself.");
+// ---- Pass 2: whose body is this? ----------------------------------------
+const IDENTITY_CYCLE = ["owner", "other", "unknown"];
+const IDENTITY_LABEL = { owner: "you", other: "someone else", unknown: "not sure" };
+
+function passIdentity(main) {
+  const readable = photos.filter(p => p.isPhotograph && p.visibility === "readable");
+  const el = section("2 · Is that you?",
+    "Click to cycle: <b>you → someone else → not sure</b>.",
+    `Only the ${readable.length} photos you marked readable — a face is never ` +
+    "asked to decide whether a person is present, only who they are. " +
+    "'Not sure' stays a third state and is never quietly promoted to 'you': " +
+    "reading absence of evidence as ownership is what put a stranger's " +
+    "photoshoot one tap from this wardrobe.");
   const grid = document.createElement("div");
   grid.className = "grid";
-  for (const photo of photos.filter(p => p.isPhotograph && p.identity === "owner")) {
-    const readable = () => photo.regions.includes("torso");
-    const fig = tile(photo, {
-      cls: readable() ? "" : "off",
-      caption: `${photo.id} · ${photo.regions.join(" ") || "nothing"}`,
-    });
+  for (const photo of readable) {
+    if (photo.identity === "none") photo.identity = "unknown";
+    const fig = tile(photo, { cls: photo.identity, badge: IDENTITY_LABEL[photo.identity] });
     fig.onclick = () => {
-      photo.regions = readable() ? photo.regions.filter(r => r !== "torso" && r !== "hips")
-                                 : [...new Set([...photo.regions, "torso", "hips"])];
-      fig.className = readable() ? "" : "off";
-      fig.querySelector("figcaption").textContent =
-        `${photo.id} · ${photo.regions.join(" ") || "nothing"}`;
+      const next = (IDENTITY_CYCLE.indexOf(photo.identity) + 1) % IDENTITY_CYCLE.length;
+      photo.identity = IDENTITY_CYCLE[next];
+      fig.className = photo.identity;
+      fig.querySelector(".badge").textContent = IDENTITY_LABEL[photo.identity];
       persist();
     };
     grid.appendChild(fig);
@@ -449,8 +497,8 @@ function passRegistry(main) {
 // measured scalar. Neither is a question a human should be asked, and asking
 // one anyway is how a label ends up encoding a threshold.
 const PASSES = [
-  ["Who is here?", passIdentity],
-  ["Outfit visible?", passFraming],
+  ["Anyone readable?", passVisibility],
+  ["Is that you?", passIdentity],
   ["Garments", passRegistry],
 ];
 

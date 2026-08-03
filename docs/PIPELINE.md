@@ -82,6 +82,26 @@ more. "Is the owner in this photo" cannot say *which body* is theirs, and
 stage 6 has to cut a garment off a specific person. So stages 2–5 carry a
 person identifier, and identity is a property of a body.
 
+### A face is never allowed to create a person
+
+Person detection answers *is anyone here*. Face detection only answers *who*.
+Nothing may enter the pipeline on the strength of a face alone.
+
+This is not pedantry about stage ordering. A face detector fires happily on a
+book cover, a poster, a portrait on a gallery wall, a face on a television, and
+a face printed on someone's t-shirt. None of those are people, all of them can
+carry something that looks like a garment, and a depicted face can clear an
+identity threshold — at which point a book jacket's clothes are in someone's
+wardrobe under their own name.
+
+The guard is the two-sided association below: a face counts only when it sits
+inside a detected person rectangle whose pose agrees. A face with no body is a
+depiction.
+
+The corpus labels this directly. `pictured, not real` is its own answer in the
+labelling tool rather than a flavour of "nobody", because proving the guard
+works requires photos where the correct answer is *a face, but no one there*.
+
 ### Stage 5, in detail
 
 Face → body association is two-sided: a face box must contain pose head joints,
@@ -230,8 +250,13 @@ a question to put to a person: the first is free and exact, and a hand label for
 failure this schema exists to prevent.
 
 That leaves three questions a machine cannot answer, and they are the whole of
-the labelling tool: **who is in this photo**, **what of them can you see**, and
-**which of these are the same physical garment**.
+the labelling tool: **can an outfit be read off anyone here**, **is that person
+the owner**, and **which of these are the same physical garment**.
+
+They are asked in that order because the pipeline runs them in that order.
+Asking "is this you" about a queue of thirty-pixel strangers is a question with
+no useful answer in either direction, so identity only ever sees what visibility
+admitted — 242 of 490 photos rather than all of them.
 
 Framing stays human on purpose even though pose measures it. Pose is the thing
 under test; letting it generate its own ground truth would score it against
