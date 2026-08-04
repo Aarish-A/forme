@@ -40,6 +40,7 @@ nonisolated struct PhotoFacts: Codable {
     var poses: [Pose]
     var faces: [Face]
 
+    var faceDiagnoses: [FaceDiagnosis] = []
     var analysisMS: Int
     var errors: [String]
 
@@ -65,6 +66,22 @@ nonisolated struct PhotoFacts: Codable {
         var captureQuality: Float?
         var embedding: [Float]?
     }
+
+    /// Why a detected face produced no embedding.
+    ///
+    /// The embedding path is four guards deep — a pixel floor, landmark
+    /// extraction, an alignment transform, then inference — and all four
+    /// collapse into a single silent `continue`. That silence turned "22% of
+    /// targets lose identity" into an unanswerable question, and cost three
+    /// wrong hypotheses before anyone measured it.
+    nonisolated struct FaceDiagnosis: Codable {
+        var sidePx: Double
+        var hasLandmarks: Bool
+        var hasEyes: Bool
+        var hasNose: Bool
+        var roll: Double?
+        var yaw: Double?
+    }
 }
 
 // MARK: - Loading
@@ -72,11 +89,27 @@ nonisolated struct PhotoFacts: Codable {
 nonisolated struct Runner {
     let fixtures: URL
     let modelURL: URL?
+    /// Built once and reused, exactly as the app does.
+    ///
+    /// Constructing one per photo loads the Core ML model 490 times, and Core ML
+    /// starts refusing after a while — silently, and per photo, so the failure
+    /// looked like a property of the photographs. Whole images embedded or did
+    /// not, all-or-nothing, which is the shape that gave it away: face size,
+    /// landmarks and pose all vary *within* a photo, so nothing about a face
+    /// could explain it.
+    let identity: VisionFaceIdentityService
 
     /// Matches the app: analysis at 512 px, identity retried at 1536 px because
     /// a face in a full-length photo is tiny at 512.
+    ///
+    /// Raising the identity decode is measured to do nothing. 1536 px, 4096 px
+    /// and 12000 px (no downsampling whatsoever) all embed the same 216 photos.
+    /// Face size correlates strongly with success — 98–100% above 300 px, single
+    /// digits below — but it is a correlate, not a cause, and the curve is not
+    /// even monotonic: 160–220 px succeeds 4% of the time while 80–160 px
+    /// succeeds 17%. Do not "fix" identity by asking for more pixels.
     static let analysisPixels = 512
-    static let identityPixels = 4096
+    static let identityPixels = 1536
 
     func image(at url: URL, maxPixelSize: Int) -> CGImage? {
         guard let source = CGImageSourceCreateWithURL(url as CFURL, nil) else { return nil }
@@ -128,8 +161,8 @@ nonisolated struct Runner {
 
         // Identity at full resolution — the retry that made faces exist at all.
         var faces: [PhotoFacts.Face] = []
+        var diagnoses: [PhotoFacts.FaceDiagnosis] = []
         let large = image(at: url, maxPixelSize: Self.identityPixels) ?? small
-        let identity = VisionFaceIdentityService(modelURL: modelURL)
         do {
             let detection = try await identity.detectFaces(in: large)
             let width = CGFloat(large.width)
@@ -169,6 +202,33 @@ nonisolated struct Runner {
             errors.append("identity: \(error)")
         }
 
+        // Run the same two requests the identity service runs, and record what
+        // each face got. This is the only way to tell a face that was too small
+        // from one whose landmarks never resolved.
+        do {
+            let rectangles = try await DetectFaceRectanglesRequest().perform(on: large)
+            var landmarksRequest = DetectFaceLandmarksRequest()
+            landmarksRequest.inputFaceObservations = rectangles
+            let observed = try await landmarksRequest.perform(on: large)
+            let size = CGSize(width: large.width, height: large.height)
+            for observation in observed {
+                let pixels = observation.boundingBox.toImageCoordinates(size, origin: .upperLeft)
+                let landmarks = observation.landmarks
+                diagnoses.append(
+                    .init(
+                        sidePx: Double(min(pixels.width, pixels.height)),
+                        hasLandmarks: landmarks != nil,
+                        hasEyes: landmarks?.leftEye != nil && landmarks?.rightEye != nil,
+                        hasNose: landmarks?.nose != nil || landmarks?.noseCrest != nil,
+                        roll: observation.roll.converted(to: .degrees).value,
+                        yaw: observation.yaw.converted(to: .degrees).value
+                    )
+                )
+            }
+        } catch {
+            errors.append("landmarks: \(error)")
+        }
+
         return PhotoFacts(
             id: id,
             widthPx: large.width,
@@ -180,6 +240,7 @@ nonisolated struct Runner {
             },
             poses: poses,
             faces: faces,
+            faceDiagnoses: diagnoses,
             analysisMS: Int(Date().timeIntervalSince(started) * 1000),
             errors: errors
         )
@@ -235,7 +296,11 @@ guard !jobs.isEmpty else {
 }
 
 print("Running Vision over \(jobs.count) photos…")
-let runner = Runner(fixtures: fixtures, modelURL: modelURL)
+let runner = Runner(
+    fixtures: fixtures,
+    modelURL: modelURL,
+    identity: VisionFaceIdentityService(modelURL: modelURL)
+)
 let started = Date()
 var all: [PhotoFacts] = []
 for (index, job) in jobs.enumerated() {

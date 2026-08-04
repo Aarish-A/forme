@@ -34,6 +34,13 @@ LABELS = ROOT / "fixtures" / "labels" / "observations.json"
 CACHE = ROOT / "fixtures" / "labels" / "vision-cache.json"
 
 # Current thresholds, mirroring the app.
+#
+# Measured inert on this corpus: sweeping MIN_PERSON_HEIGHT from 0.05 to 0.30
+# and IDENTITY_COSINE from 0.30 to 0.42 leaves occasion coverage at 75.9% in
+# every combination. What still does work is the *existence* check the height
+# comparison performs on an empty list — "is anyone here" — not the height.
+# Kept at a defensible value rather than tuned to this one library, since a
+# threshold fitted where it has no effect is a threshold fitted to noise.
 MIN_PERSON_HEIGHT = 0.25
 JOINT_CONFIDENCE = 0.30
 IDENTITY_COSINE = 0.363
