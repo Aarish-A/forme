@@ -54,8 +54,25 @@ nonisolated struct FaceDetection: Sendable, Equatable {
     /// Shortest side in pixels of every face detected, including those too
     /// small to embed.
     var detectedSidesPx: [CGFloat] = []
+    /// Why each detected face produced no embedding, in detection order.
+    var rejections: [FaceRejection] = []
 
     static let none = FaceDetection()
+}
+
+/// Why a face Vision could see produced no usable embedding.
+///
+/// The embedding path is four guards deep and they used to collapse into one
+/// silent `continue`, which turned "identity loses a fifth of its targets" into
+/// a question nothing could answer. Five separate explanations were proposed and
+/// disproved before anyone could see which guard was actually firing.
+nonisolated enum FaceRejection: String, Error, Codable, Sendable, Equatable, CaseIterable {
+    case tooSmall
+    case noLandmarks
+    case noAlignmentTransform
+    case renderFailed
+    case inferenceFailed
+    case degenerateEmbedding
 }
 
 /// Detects faces and produces identity embeddings, entirely on-device.

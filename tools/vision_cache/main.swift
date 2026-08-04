@@ -41,6 +41,7 @@ nonisolated struct PhotoFacts: Codable {
     var faces: [Face]
 
     var faceDiagnoses: [FaceDiagnosis] = []
+    var rejections: [String] = []
     var analysisMS: Int
     var errors: [String]
 
@@ -81,6 +82,10 @@ nonisolated struct PhotoFacts: Codable {
         var hasNose: Bool
         var roll: Double?
         var yaw: Double?
+        /// Spread of the five alignment points, in pixels. `similarityTransform`
+        /// rejects when this collapses toward zero.
+        var pointSpreadPx: Double?
+        var landmarkPointCounts: [String: Int] = [:]
     }
 }
 
@@ -109,7 +114,7 @@ nonisolated struct Runner {
     /// even monotonic: 160–220 px succeeds 4% of the time while 80–160 px
     /// succeeds 17%. Do not "fix" identity by asking for more pixels.
     static let analysisPixels = 512
-    static let identityPixels = 1536
+    static let identityPixels = 4096
 
     func image(at url: URL, maxPixelSize: Int) -> CGImage? {
         guard let source = CGImageSourceCreateWithURL(url as CFURL, nil) else { return nil }
@@ -162,6 +167,7 @@ nonisolated struct Runner {
         // Identity at full resolution — the retry that made faces exist at all.
         var faces: [PhotoFacts.Face] = []
         var diagnoses: [PhotoFacts.FaceDiagnosis] = []
+        var rejectionReasons: [String] = []
         let large = image(at: url, maxPixelSize: Self.identityPixels) ?? small
         do {
             let detection = try await identity.detectFaces(in: large)
@@ -198,6 +204,7 @@ nonisolated struct Runner {
                     )
                 )
             }
+            rejectionReasons = detection.rejections.map(\.rawValue)
         } catch {
             errors.append("identity: \(error)")
         }
@@ -214,6 +221,26 @@ nonisolated struct Runner {
             for observation in observed {
                 let pixels = observation.boundingBox.toImageCoordinates(size, origin: .upperLeft)
                 let landmarks = observation.landmarks
+                func pts(_ region: FaceObservation.Landmarks2D.Region?) -> [CGPoint] {
+                    region?.pointsInImageCoordinates(size, origin: .upperLeft) ?? []
+                }
+                let counts: [String: Int] = [
+                    "leftEye": pts(landmarks?.leftEye).count,
+                    "rightEye": pts(landmarks?.rightEye).count,
+                    "noseCrest": pts(landmarks?.noseCrest).count,
+                    "outerLips": pts(landmarks?.outerLips).count
+                ]
+                let all = pts(landmarks?.leftEye) + pts(landmarks?.rightEye)
+                    + pts(landmarks?.noseCrest) + pts(landmarks?.outerLips)
+                var spread: Double?
+                if !all.isEmpty {
+                    let cx = all.map(\.x).reduce(0, +) / CGFloat(all.count)
+                    let cy = all.map(\.y).reduce(0, +) / CGFloat(all.count)
+                    spread = Double(
+                        all.map { (($0.x - cx) * ($0.x - cx) + ($0.y - cy) * ($0.y - cy)).squareRoot() }
+                            .reduce(0, +) / CGFloat(all.count)
+                    )
+                }
                 diagnoses.append(
                     .init(
                         sidePx: Double(min(pixels.width, pixels.height)),
@@ -221,7 +248,9 @@ nonisolated struct Runner {
                         hasEyes: landmarks?.leftEye != nil && landmarks?.rightEye != nil,
                         hasNose: landmarks?.nose != nil || landmarks?.noseCrest != nil,
                         roll: observation.roll.converted(to: .degrees).value,
-                        yaw: observation.yaw.converted(to: .degrees).value
+                        yaw: observation.yaw.converted(to: .degrees).value,
+                        pointSpreadPx: spread,
+                        landmarkPointCounts: counts
                     )
                 )
             }
@@ -241,6 +270,7 @@ nonisolated struct Runner {
             poses: poses,
             faces: faces,
             faceDiagnoses: diagnoses,
+            rejections: rejectionReasons,
             analysisMS: Int(Date().timeIntervalSince(started) * 1000),
             errors: errors
         )

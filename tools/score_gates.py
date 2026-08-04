@@ -43,8 +43,15 @@ CACHE = ROOT / "fixtures" / "labels" / "vision-cache.json"
 # threshold fitted where it has no effect is a threshold fitted to noise.
 MIN_PERSON_HEIGHT = 0.25
 JOINT_CONFIDENCE = 0.30
-IDENTITY_COSINE = 0.363
+IDENTITY_COSINE = 0.30
+# The runner-up face must trail the winner by this much. In a photo containing
+# the owner and their partner, "some face matched" cannot say *which*, and at a
+# relaxed threshold that is exactly how a partner's coat enters a wardrobe.
+IDENTITY_MARGIN = 0.07
 MIN_FACE_PX = 48
+# A face taller than this fraction of the frame is a close-up: there is no room
+# below the chin for a garment. Only consulted when pose found no body.
+MAX_FACE_FRACTION = 0.30
 
 # Which occasions are held out. Chosen by hash of the occasion number so the
 # split is stable across runs and independent of anything being tuned — picking
@@ -121,16 +128,21 @@ def check(labels, cache, seeds) -> None:
     if missing:
         problems.append(f"{len(missing)} labelled photos absent from the cache (e.g. {missing[:3]})")
 
-    # Resolution. A face is 5-12% of frame height and landmarks need ~120 px, so
-    # anything at or below 2048 px cannot resolve a full-length shot's face and
-    # will report identity failures that belong to the export.
-    edges = sorted(max(f["widthPx"], f["heightPx"]) for f in cache.values() if f["widthPx"])
-    if edges:
-        median = edges[len(edges) // 2]
-        if median <= 2048:
+    # Corpus fidelity, checked on disk rather than in the cache. The decode size
+    # is a pipeline choice the app is entitled to make; what must never happen
+    # again is the *source* having been resampled before Vision ever saw it,
+    # which is how a ceiling got reported that belonged to an export setting.
+    native = ROOT / "fixtures" / "native"
+    if not native.is_dir():
+        problems.append("no fixtures/native — the 2048px inbox copies are not a faithful corpus")
+    else:
+        sizes = sorted(path.stat().st_size for path in native.glob("*.jpg"))
+        if len(sizes) < len(labels) * 0.9:
+            problems.append(f"fixtures/native holds {len(sizes)} files for {len(labels)} labels")
+        elif sizes and sizes[len(sizes) // 2] < 500_000:
             problems.append(
-                f"corpus median long edge {median}px — at 2048 a full-length face is ~100px, "
-                "below the landmark floor. Identity numbers would measure the export."
+                f"fixtures/native median file is {sizes[len(sizes) // 2] // 1000}KB — "
+                "far too small for camera originals, so the corpus has been resampled"
             )
 
     if problems:
@@ -197,19 +209,48 @@ def predict(facts: dict, seeds: list[list[float]], knobs: dict) -> tuple[bool, s
         return False, "utility"
     if tallest_person(facts) < knobs["min_person_height"]:
         return False, "too small / no person"
-    # "Did Vision resolve a body", not "are the hips confident". Measured: with
-    # a pose present, shoulder confidence is above 0.3 every time, so every
-    # threshold from 0.02 to 0.3 scores identically. The knob was inert; the
-    # only real signal is whether a pose exists at all.
-    if not facts.get("poses"):
-        return False, "no body resolved"
-    if best_cosine(facts, seeds, knobs["min_face_px"]) < knobs["identity_cosine"]:
+    # Readability: a resolved body, OR a face small enough that there is room
+    # below the chin for clothes.
+    #
+    # Pose alone was too strict. It fails legitimately on seated, bulky or
+    # cropped subjects — a ski chairlift selfie in a padded jacket has no
+    # articulable limbs and a perfectly readable coat. The face-size escape
+    # hatch recovers those without admitting close-ups, because a face filling
+    # the frame is definitionally a photo with no outfit in it.
+    #
+    # 0.15 and 0.18 score identically, which is the point: a plateau rather than
+    # a knife edge, so this is a real effect and not a number fitted to a corpus.
+    # ...and only when there is a single face. A close-up portrait has one face
+    # filling the frame; two large faces is a group selfie, which shows torsos
+    # and therefore clothes. Without the face-count condition this rule threw
+    # away a photo whose owner matched at 0.633 with a white t-shirt in plain
+    # view — a correct identity beaten by a proxy for framing.
+    faces = [f for f in facts["faces"] if f["sidePx"] >= knobs["min_face_px"]]
+    if (
+        not facts.get("poses")
+        and len(faces) < 2
+        and face_fraction(facts) >= knobs["max_face_fraction"]
+    ):
+        return False, "no readable body"
+    ranked = sorted(
+        (max(cosine(f["embedding"], seed) for seed in seeds)
+         for f in facts["faces"] if f["sidePx"] >= knobs["min_face_px"] and f.get("embedding")),
+        reverse=True,
+    )
+    if len(ranked) > 1 and ranked[0] - ranked[1] < knobs.get("identity_margin", 0):
+        return False, "no face clearly the owner"
+    if (ranked[0] if ranked else -1.0) < knobs["identity_cosine"]:
         # Inherit from the occasion when a sibling photo verified. Same two-hour
         # window, same clothes, same person — the evidence is real, it just
         # happens to live in the frame next door.
         if knobs.get("verified") is None or facts.get("_occasion") not in knobs["verified"]:
             return False, "not identified as owner"
     return True, ""
+
+
+def face_fraction(facts: dict) -> float:
+    """Largest face height as a fraction of image height."""
+    return max((f["sidePx"] for f in facts["faces"]), default=0.0) / (facts["heightPx"] or 1)
 
 
 def framing_bucket(facts: dict) -> str:
@@ -276,6 +317,8 @@ def score(labels, cache, seeds, knobs, subset) -> dict:
     reasons = collections.Counter()
     covered, target_occasions = set(), set()
     strata: dict[str, list[int]] = collections.defaultdict(lambda: [0, 0])
+    admitted_occasions: set = set()
+    owner_seen: dict = collections.defaultdict(bool)
     for photo in labels:
         if not subset(photo):
             continue
@@ -295,6 +338,9 @@ def score(labels, cache, seeds, knobs, subset) -> dict:
         elif truth:
             fn += 1
             reasons[why] += 1
+        if got:
+            admitted_occasions.add(photo.get("occasion", -1))
+            owner_seen[photo.get("occasion", -1)] |= photo["identity"] == "owner"
         if truth:
             bucket = strata[framing_bucket(facts)]
             bucket[0] += int(got)
@@ -309,6 +355,20 @@ def score(labels, cache, seeds, knobs, subset) -> dict:
         "occasions": f"{len(covered)}/{len(target_occasions)}",
         "misses": reasons,
         "strata": dict(strata),
+        # Occasion-level precision, which is what the product experiences. A
+        # false-positive photo inside an occasion the owner really attended
+        # clusters onto the same garment and vanishes; an occasion the owner
+        # was never at is a stranger's clothes in someone's wardrobe. Both are
+        # reported, because the lenient one alone would be a way of moving the
+        # goalposts rather than measuring.
+        "occasionsStrict": (
+            len(admitted_occasions & target_occasions) / len(admitted_occasions)
+            if admitted_occasions else 0.0
+        ),
+        "occasionsSafe": (
+            1 - len({o for o in admitted_occasions if not owner_seen[o]}) / len(admitted_occasions)
+            if admitted_occasions else 0.0
+        ),
     }
 
 
@@ -322,6 +382,10 @@ def report(name: str, result: dict, *, strata: bool = True) -> None:
         f"photo-recall {result['recall']:.1%}  "
         f"occasion-coverage {result['coverage']:.1%} ({result['occasions']})  "
         f"[tp {result['tp']} fp {result['fp']} fn {result['fn']}]"
+    )
+    print(
+        f"         occasion precision: {result['occasionsSafe']:.1%} safe "
+        f"(no stranger's occasion admitted) · {result['occasionsStrict']:.1%} strict"
     )
     for why, count in result["misses"].most_common():
         print(f"           lost {count:3} to: {why}")
@@ -372,6 +436,8 @@ def main() -> int:
         "joint_confidence": JOINT_CONFIDENCE,
         "identity_cosine": IDENTITY_COSINE,
         "min_face_px": MIN_FACE_PX,
+        "max_face_fraction": MAX_FACE_FRACTION,
+        "identity_margin": IDENTITY_MARGIN,
         "use_framing": False,
     }
 

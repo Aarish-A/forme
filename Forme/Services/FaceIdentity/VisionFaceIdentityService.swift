@@ -80,18 +80,40 @@ final nonisolated class VisionFaceIdentityService: FaceIdentityService, @uncheck
         let imageSize = CGSize(width: image.width, height: image.height)
         var faces: [DetectedFace] = []
         var detectedSides: [CGFloat] = []
+        var rejections: [FaceRejection] = []
         for observation in observations {
             let pixelBox = observation.boundingBox.toImageCoordinates(imageSize, origin: .upperLeft)
             let side = min(pixelBox.width, pixelBox.height)
             // Recorded before the floor rejects it: a face Vision could see but
             // we couldn't embed is the single most useful measurement here.
             detectedSides.append(side)
-            guard side >= FaceIdentityLimits.minimumFacePixels else { continue }
-            guard
-                let points = Self.alignmentPoints(for: observation, imageSize: imageSize),
-                let transform = Self.similarityTransform(from: points, to: Self.template),
-                let embedding = embed(image: image, transform: transform, model: model)
-            else { continue }
+            guard side >= FaceIdentityLimits.minimumFacePixels else {
+                rejections.append(.tooSmall)
+                continue
+            }
+            // Each guard reports separately. Chained into one `else { continue }`
+            // these are indistinguishable, and a fifth of all detected faces were
+            // disappearing through them with nothing to say which.
+            guard let points = Self.alignmentPoints(for: observation, imageSize: imageSize) else {
+                rejections.append(.noLandmarks)
+                continue
+            }
+            // Landmark alignment when the landmarks are real, a plain box crop
+            // when they are not. Vision reports "landmarks unavailable" as a
+            // fully-populated set of *coincident* points rather than as nil, so
+            // the only way to tell is to measure their spread — and 136 of 232
+            // rejected faces were exactly this, silently, because the degenerate
+            // set flows through every non-nil check and only dies at the
+            // zero-variance guard inside the transform.
+            let transform = Self.similarityTransform(from: points, to: Self.template)
+                ?? Self.boxTransform(for: pixelBox)
+            let embedded = embed(image: image, transform: transform, model: model)
+            guard case let .success(embedding) = embedded else {
+                if case let .failure(reason) = embedded {
+                    rejections.append(reason)
+                }
+                continue
+            }
 
             let normalizedBox = CGRect(
                 x: pixelBox.minX / imageSize.width,
@@ -105,7 +127,7 @@ final nonisolated class VisionFaceIdentityService: FaceIdentityService, @uncheck
                 captureQuality: Self.quality(for: observation, among: scored)
             ))
         }
-        return FaceDetection(faces: faces, detectedSidesPx: detectedSides)
+        return FaceDetection(faces: faces, detectedSidesPx: detectedSides, rejections: rejections)
     }
 
     // MARK: - Model
@@ -129,20 +151,51 @@ final nonisolated class VisionFaceIdentityService: FaceIdentityService, @uncheck
         }
     }
 
-    private func embed(image: CGImage, transform: CGAffineTransform, model: MLModel) -> FaceEmbedding? {
+    /// Returns the reason on failure rather than a bare nil: three quite
+    /// different things happen in here — a Core Graphics render, a Core ML
+    /// prediction, and a norm check — and they need telling apart.
+    private func embed(
+        image: CGImage,
+        transform: CGAffineTransform,
+        model: MLModel
+    ) -> Result<FaceEmbedding, FaceRejection> {
+        guard let buffer = Self.renderAlignedFace(from: image, transform: transform) else {
+            return .failure(.renderFailed)
+        }
         guard
-            let buffer = Self.renderAlignedFace(from: image, transform: transform),
             let provider = try? MLDictionaryFeatureProvider(
                 dictionary: ["image": MLFeatureValue(pixelBuffer: buffer)]
             ),
             let output = try? model.prediction(from: provider),
             let array = output.featureValue(for: "embedding")?.multiArrayValue
-        else { return nil }
+        else { return .failure(.inferenceFailed) }
 
         let raw = (0 ..< array.count).map { array[$0].floatValue }
         let norm = raw.reduce(0) { $0 + $1 * $1 }.squareRoot()
-        guard norm > .ulpOfOne else { return nil }
-        return FaceEmbedding(vector: raw.map { $0 / norm })
+        guard norm > .ulpOfOne else { return .failure(.degenerateEmbedding) }
+        return .success(FaceEmbedding(vector: raw.map { $0 / norm }))
+    }
+
+    /// Maps a face box onto the model's input square when landmarks are unusable.
+    ///
+    /// Cruder than landmark alignment: no roll correction, and the crop is only
+    /// as well-centred as Vision's box. But an unrotated, correctly-scaled face
+    /// still embeds far closer to its own identity than to anyone else's, and
+    /// the alternative is discarding the face entirely — which is what was
+    /// happening to 59% of every face this pipeline rejected.
+    ///
+    /// The 1.35 expansion approximates the ArcFace template's framing, where the
+    /// eye line sits at 46% of the crop height and the mouth at 82%: Vision's box
+    /// is tighter than that, so a bare box-to-square map would crop a face the
+    /// model expects to see with margin.
+    private static func boxTransform(for pixelBox: CGRect) -> CGAffineTransform {
+        let side = CGFloat(cropSide)
+        let source = max(pixelBox.width, pixelBox.height) * 1.35
+        guard source > .ulpOfOne else { return .identity }
+        let scale = side / source
+        return CGAffineTransform(translationX: side / 2, y: side / 2)
+            .scaledBy(x: scale, y: scale)
+            .translatedBy(x: -pixelBox.midX, y: -pixelBox.midY)
     }
 
     // MARK: - Alignment
