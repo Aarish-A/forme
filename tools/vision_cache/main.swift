@@ -76,7 +76,7 @@ nonisolated struct Runner {
     /// Matches the app: analysis at 512 px, identity retried at 1536 px because
     /// a face in a full-length photo is tiny at 512.
     static let analysisPixels = 512
-    static let identityPixels = 1536
+    static let identityPixels = 4096
 
     func image(at url: URL, maxPixelSize: Int) -> CGImage? {
         guard let source = CGImageSourceCreateWithURL(url as CFURL, nil) else { return nil }
@@ -202,20 +202,35 @@ if modelURL == nil {
     print("warning: no SFace model — faces will be detected but not embedded")
 }
 
+// `native/` holds the corpus at camera resolution and is strongly preferred.
+// The `inbox/` copies were resampled to 2048 px for the labelling tool, and a
+// face is 5–12% of frame height — so at 2048 px a full-length shot yields a
+// ~100 px face, under the size where landmarks stabilise. Scoring against those
+// measures the export rather than the pipeline, which is exactly how this
+// project produced a confident and entirely fictitious ceiling once already.
 let inbox = fixtures.appending(path: "inbox")
+let native = fixtures.appending(path: "native")
 var jobs: [(id: String, url: URL)] = []
-for bucket in ["you", "others", "reject", "unsure", "seed"] {
-    let directory = inbox.appending(path: bucket)
+
+func collect(_ directory: URL) {
     let entries = (try? FileManager.default.contentsOfDirectory(at: directory, includingPropertiesForKeys: nil)) ?? []
     for entry in entries where entry.pathExtension.lowercased() == "jpg" {
         jobs.append((entry.deletingPathExtension().lastPathComponent, entry))
     }
 }
 
+collect(native)
+if jobs.isEmpty {
+    for bucket in ["you", "others", "reject", "unsure", "seed"] {
+        collect(inbox.appending(path: bucket))
+    }
+    print("warning: no native corpus — falling back to 2048 px, identity numbers will be pessimistic")
+}
+
 jobs.sort { $0.id < $1.id }
 
 guard !jobs.isEmpty else {
-    FileHandle.standardError.write(Data("no photos under \(inbox.path())\n".utf8))
+    FileHandle.standardError.write(Data("no photos under \(native.path()) or \(inbox.path())\n".utf8))
     exit(1)
 }
 
