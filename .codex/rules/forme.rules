@@ -1,0 +1,8 @@
+# Preserve the project Claude CLI deny rules.
+prefix_rule(
+    pattern = ["supabase", "db", ["reset", "push"]],
+    decision = "forbidden",
+    justification = "Project policy forbids database reset/push; inspect migrations instead.",
+    match = ["supabase db reset", "supabase db push --linked"],
+    not_match = ["supabase migration list", "supabase status"],
+)

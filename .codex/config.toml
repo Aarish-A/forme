@@ -1,0 +1,8 @@
+personality = "friendly"
+
+[mcp_servers.supabase]
+url = "https://mcp.supabase.com/mcp?project_ref=gknqnstlxjpcrqakvlew"
+bearer_token_env_var = "SUPABASE_ACCESS_TOKEN"
+
+[features]
+hooks = true

@@ -1,0 +1,70 @@
+Forme Codex migration — final project audit, 2026-09-08
+
+Migrated and verified
+- CLAUDE.md -> AGENTS.md: independent reviewed Codex copy; original unchanged.
+  Preserved architecture, workflow, credentials guidance, and MCP write approval.
+- Claude permissions -> AGENTS.md and .codex/rules/forme.rules: sensitive-file
+  read restrictions remain guidance, not filesystem enforcement; matching
+  supabase db reset/push commands have validated forbidden prefix rules.
+  Claude allow entries do not grant Codex sandbox bypass.
+- .mcp.json -> .codex/config.toml: Supabase bearer variable reference preserved;
+  friendly personality and canonical features.hooks enabled. Token is now
+  present and a read-only MCP get_project_url call reached the Forme project.
+- Swift formatter -> .codex/hooks.json and .codex/hooks/format-swift.py:
+  script tested with pinned SwiftFormat 0.62.1, paths with spaces, repeated
+  calls, unrelated/deleted files, and outside/symlink exclusion.
+- Installed commit-commands plugin -> three repository Codex skills:
+  $source-command-commit
+  $source-command-commit-push-pr
+  $source-command-clean-gone
+  Replaced Claude shell interpolation, tool allowlists, and tool-only response
+  constraints with explicit Codex steps. Cleanup preserves dirty worktrees and
+  unmerged work instead of unconditionally forcing deletion. Each skill retains
+  the Apache-2.0 license and attribution. No Git mutation workflow was executed.
+- Codex skills/list confirms all three new skills are discovered and enabled.
+- Codex plugin inventory confirms skill-creator, claude-md-management, and
+  commit-commands are already installed and enabled. The previous statement
+  that commit-commands was not installed was incorrect: its commands lacked
+  Codex skill entrypoints, now supplied by the repository migration above.
+- No project subagents or standalone source skills/commands were present.
+
+Remaining activation and scope limits
+- LOCAL FORMATTING: hooks/list confirms the project hook is enabled but untrusted.
+  A live apply_patch test did not format its temporary Swift file; the probe was
+  removed. Open Codex CLI in this repository, run /hooks, and review/trust the
+  project Swift formatter. Codex requires trust of the exact hook definition.
+  Until trusted, explicitly format changed Swift files. Retest automatic dispatch
+  after trust; do not claim it is active based only on the script test.
+- CLOUD: local launch credentials do not configure cloud tasks. Cloud environment
+  authentication and remote tool availability have not been set up or tested.
+  Cloud Secrets are setup-only; runtime environment variables survive into the
+  agent phase. Enabling a variable does not establish hosted MCP availability.
+- VERSION CONTROL: AGENTS.md, .codex/, and .agents/ are included in the
+  migration change. Cloud tasks and other checkouts must use a branch containing
+  these files; credentials and hook trust remain local setup.
+- GLOBAL PLUGIN WARNING: security-guidance 2.0.7 has a hooks.json parse warning
+  (unknown top-level description field). This pre-existing installed plugin is
+  outside this project migration; its cached/global files were not modified.
+  The unrelated Expo feedback hook is also untrusted. Neither is the Forme hook.
+- Global Claude settings, other repositories, and their migrations were not
+  selected or changed. This audit covers Forme and its three enabled plugins.
+
+Validation and rerun guidance
+- Target validator passes config, instructions, and all three skill frontmatters.
+- Skill-creator quick_validate passes all three skills using an isolated temporary Python environment.
+- Original CLAUDE.md, .mcp.json, and both Claude settings files hash-verified
+  unchanged; generated artifacts contain no access-token value.
+- Post-edit doctor/dry-run completed. Its three orphan skills are the intentional
+  plugin command imports, absent from the project's .claude tree. Keep merge
+  mode; --replace would remove them.
+- The older migrator proposes overwriting the reviewed hook, instruction copy,
+  and command skills with raw conversions. Preserve these reviewed adaptations
+  when running future migrations. No actionable manual placeholders remain.
+- App code and pre-existing diagnostics/, fixtures/, and tools/__pycache__ were
+  untouched. No application build was needed for this configuration migration.
+- Built-in TODO tool was unavailable; no TODO file was created.
+
+References
+https://learn.chatgpt.com/docs/hooks
+https://learn.chatgpt.com/docs/extend/mcp?surface=cli
+https://learn.chatgpt.com/docs/environments/cloud-environment
