@@ -113,6 +113,10 @@ with `-suppress-warnings` — never see the conflicting flag.
 
 ## Supabase
 
+Project URL: `https://gknqnstlxjpcrqakvlew.supabase.co`.
+For `SUPABASE_URL` in xcconfig, use the bare host
+`gknqnstlxjpcrqakvlew.supabase.co` to avoid `//` being treated as a comment.
+
 Credentials live in `Config/Secrets.xcconfig` (gitignored; `make bootstrap`
 creates it) and flow xcconfig → Info.plist → `SupabaseConfig` → services.
 
