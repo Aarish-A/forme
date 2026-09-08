@@ -45,8 +45,8 @@
 		AA0000000000000000000093 /* .gitignore */ = {isa = PBXFileReference; lastKnownFileType = text; path = .gitignore; sourceTree = "<group>"; };
 		AA0000000000000000000094 /* .swiftlint.yml */ = {isa = PBXFileReference; lastKnownFileType = text.yaml; path = .swiftlint.yml; sourceTree = "<group>"; };
 		AA0000000000000000000095 /* .swiftformat */ = {isa = PBXFileReference; lastKnownFileType = text; path = .swiftformat; sourceTree = "<group>"; };
-		AA0000000000000000000096 /* .github */ = {isa = PBXFileReference; lastKnownFileType = folder; name = ".github"; path = ".github"; sourceTree = "<group>"; };
-		AA0000000000000000000097 /* .claude */ = {isa = PBXFileReference; lastKnownFileType = folder; name = ".claude"; path = ".claude"; sourceTree = "<group>"; };
+		AA0000000000000000000096 /* .github */ = {isa = PBXFileReference; lastKnownFileType = folder; path = .github; sourceTree = "<group>"; };
+		AA0000000000000000000097 /* .claude */ = {isa = PBXFileReference; lastKnownFileType = folder; path = .claude; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */

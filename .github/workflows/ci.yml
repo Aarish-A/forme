@@ -13,7 +13,7 @@ concurrency:
 env:
   # Must be a simulator the runner image actually has. The "Available
   # simulators" step below prints the list when a run fails to find it.
-  SIMULATOR: "iPhone 17"
+  SIMULATOR: "iPhone 17 Pro"
 
 jobs:
   lint:
@@ -72,12 +72,14 @@ jobs:
       - name: Cache SwiftPM
         uses: actions/cache@v4
         with:
-          path: ~/Library/Developer/Xcode/DerivedData/**/SourcePackages
+          path: DerivedData/SourcePackages
           key: spm-${{ runner.os }}-${{ hashFiles('**/Package.resolved') }}
           restore-keys: spm-${{ runner.os }}-
 
+      # -scheme is not optional here: newer xcodebuild rejects -derivedDataPath
+      # without -scheme, -testProductsPath or -xctestrun, and exits 64.
       - name: Resolve dependencies
-        run: xcodebuild -resolvePackageDependencies -project Forme.xcodeproj
+        run: xcodebuild -resolvePackageDependencies -project Forme.xcodeproj -scheme Forme -derivedDataPath DerivedData
 
       - name: Available simulators
         run: xcrun simctl list devices available
@@ -92,6 +94,7 @@ jobs:
             -project Forme.xcodeproj \
             -scheme Forme \
             -destination "platform=iOS Simulator,name=${{ env.SIMULATOR }}" \
+            -derivedDataPath DerivedData \
             -resultBundlePath TestResults.xcresult \
             -enableCodeCoverage YES \
             FORME_WARNINGS_AS_ERRORS=YES \

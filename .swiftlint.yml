@@ -9,6 +9,9 @@ included:
 excluded:
   - .build
   - DerivedData
+  # Worktrees live here. Without this, `make lint` in one worktree reports on
+  # another one's sources.
+  - .claude
 
 # Rules that are off by default but worth having. Most of these catch the kind
 # of thing that reads fine in review and bites later.

@@ -3,7 +3,7 @@
 
 --swiftversion 6.0
 
---exclude .build,DerivedData,Pods
+--exclude .build,DerivedData,Pods,.claude
 
 # MARK: Layout
 

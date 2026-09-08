@@ -15,5 +15,10 @@
 	<string>$(SUPABASE_URL)</string>
 	<key>SUPABASE_ANON_KEY</key>
 	<string>$(SUPABASE_ANON_KEY)</string>
+	<!-- With limited photo access, iOS otherwise shows its own "manage
+	     selection" alert at every launch that uses PhotoKit. The scan flow
+	     explains limited access itself, so suppress the system alert. -->
+	<key>PHPhotoLibraryPreventAutomaticLimitedAccessAlert</key>
+	<true/>
 </dict>
 </plist>
